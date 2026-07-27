@@ -1,5 +1,0 @@
-org\hsbc\triocodebackend\common\exception\GlobalExceptionHandler.class
-org\hsbc\triocodebackend\common\exception\BizException.class
-org\hsbc\triocodebackend\common\result\Result.class
-org\hsbc\triocodebackend\common\result\PageResult.class
-org\hsbc\triocodebackend\enums\ErrorCodeEnum.class

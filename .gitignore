@@ -39,5 +39,5 @@ __screenshots__/
 # Vite
 *.timestamp-*-*.mjs
 
-
-/target
+# target
+**/target

@@ -90,7 +90,7 @@ public class PageResult<T> {
      * @return {@link PageResult} with zero total and empty records
      */
     public static <T> PageResult<T> empty(int pageNum, int pageSize) {
-        return new PageResult<>(Collections.emptyList(), 0L, pageNum, pageSize);
+        return new PageResult<>(Collections.<T>emptyList(), 0L, pageNum, pageSize);
     }
 }
 

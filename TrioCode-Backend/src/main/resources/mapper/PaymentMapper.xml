@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.hsbc.triocodebackend.mapper.PaymentMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO payment (payment_no, source_account_id, destination_account_id, amount,
+                             currency, reference, status, version)
+        VALUES (#{paymentNo}, #{sourceAccountId}, #{destinationAccountId}, #{amount},
+                #{currency}, #{reference}, #{status}, 0)
+    </insert>
+
+    <select id="selectByPaymentNo" resultType="Payment">
+        SELECT * FROM payment WHERE payment_no = #{paymentNo} LIMIT 1
+    </select>
+
+    <select id="selectById" resultType="Payment">
+        SELECT * FROM payment WHERE id = #{id} LIMIT 1
+    </select>
+
+    <update id="updateStatusWithLock">
+        UPDATE payment SET
+            status          = #{payment.status},
+            version         = version + 1,
+            validated_at    = #{payment.validatedAt},
+            sent_at         = #{payment.sentAt},
+            completed_at    = #{payment.completedAt},
+            failed_at       = #{payment.failedAt},
+            failure_code    = #{payment.failureCode},
+            failure_message = #{payment.failureMessage}
+        WHERE id = #{payment.id}
+          AND version = #{payment.version}
+          AND status  = #{expectedStatus}
+    </update>
+
+</mapper>
+

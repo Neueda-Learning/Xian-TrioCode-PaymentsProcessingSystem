@@ -1,14 +1,19 @@
 package org.hsbc.triocodebackend.common.constants;
 
+import java.math.BigDecimal;
+
 public final class Constants {
 
     private Constants() {
     }
 
     public static final class Payment {
-        // 逐步添加
         public static final int MAX_AMOUNT = 1_000_000;
         public static final int CURRENCY_SCALE = 2;
+        public static final BigDecimal MAX_AMOUNT_DECIMAL = BigDecimal.valueOf(MAX_AMOUNT);
+        public static final int MAX_SEND_RETRIES = 3;
+        public static final String OPERATION_DEBIT = "DEBIT";
+        public static final String OPERATION_CREDIT = "CREDIT";
 
         private Payment() {
         }

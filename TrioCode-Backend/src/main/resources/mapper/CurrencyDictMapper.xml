@@ -5,14 +5,13 @@
 <mapper namespace="org.hsbc.triocodebackend.mapper.CurrencyDictMapper">
 
     <select id="getAllCurrency" resultType="org.hsbc.triocodebackend.model.CurrencyDict">
-        SELECT
-            id,
-            code,
-            code_name AS codeName,
-            country_name AS countryName
+        SELECT code, code_name AS codeName, country_name AS countryName
         FROM currency_dict
     </select>
 
+    <select id="selectByCode" resultType="org.hsbc.triocodebackend.model.CurrencyDict">
+        SELECT code, code_name AS codeName, country_name AS countryName
+        FROM currency_dict WHERE code = #{code} LIMIT 1
+    </select>
+
 </mapper>
-
-

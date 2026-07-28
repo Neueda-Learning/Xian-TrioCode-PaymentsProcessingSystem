@@ -36,7 +36,7 @@ public class PaymentStateMachine {
         Set<PaymentStatusEnum> allowed = ALLOWED.getOrDefault(fromStatus, Collections.emptySet());
         if (!allowed.contains(toStatus)) {
             throw new BizException(ErrorCodeEnum.INVALID_STATUS_TRANSITION,
-                    String.format("不允许从 %s 流转到 %s", from, to));
+                    String.format("Transition from %s to %s is not allowed.", from, to));
         }
     }
 }

@@ -21,10 +21,10 @@ public class PaymentListQueryDTO {
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
     private LocalDateTime createdTo;
 
-    @Min(value = 1, message = "pageNum 必须大于等于 1")
+    @Min(value = 1, message = "pageNum must be greater than or equal to 1.")
     private Integer pageNum;
 
-    @Min(value = 1, message = "pageSize 必须大于等于 1")
-    @Max(value = 100, message = "pageSize 不能超过 100")
+    @Min(value = 1, message = "pageSize must be greater than or equal to 1.")
+    @Max(value = 100, message = "pageSize cannot exceed 100.")
     private Integer pageSize;
 }

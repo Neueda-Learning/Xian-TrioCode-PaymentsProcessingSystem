@@ -203,8 +203,8 @@ CREATE TABLE account_balance_history (
 CREATE TABLE currency_dict (
   id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
   code CHAR(3) COMMENT 'ISO4217币种编码',
-  code_name VARCHAR(32) NOT NULL COMMENT '币种名称',
-  country_name VARCHAR(32) NOT NULL COMMENT '国家名称'
+  code_name VARCHAR(100) NOT NULL COMMENT '币种名称',
+  country_name VARCHAR(100) NOT NULL COMMENT '国家名称'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='币种字典表';
 
 CREATE TABLE payment (

@@ -58,209 +58,135 @@
 
 ---
 
-## 2. 数据库详细设计
+2 数据库设计
+2.1 表结构与字段说明
+2.1.1 account（账户表）
 
-数据库建议：MySQL 8.0，字符集 utf8mb4。  
-本版采用 5 张核心表：
-1. account
-2. account_balance_history
-3. currency_dict
-4. payment
-5. payment_status_history
+用途：
+存储系统中的账户信息，包括账户号、账户持有人、余额及账户状态。
 
-### 2.1 表结构与字段说明
-
-#### 2.1.1 account（账户表）
-
-字段：
-1. id，BIGINT，主键，自增，非空，账户主键
-2. account_no，VARCHAR(32)，唯一，非空，账户号
-3. account_name，VARCHAR(64)，非空，账户名称
-4. currency，CHAR(3)，非空，账户币种
-5. balance，DECIMAL(18,2)，非空，默认 0.00，账户余额
-6. status，TINYINT，非空，默认 1，1=启用 0=禁用
-7. created_at，DATETIME(3)，非空，默认当前时间
-8. updated_at，DATETIME(3)，非空，默认当前时间，自动更新
+字段	类型	约束	说明
+id	BIGINT	主键，自增，非空	账户ID
+account_no	VARCHAR(32)	唯一，非空	账户号
+name	VARCHAR(30)	非空	账户持有人姓名
+balance	DECIMAL	非空，默认0.00	当前账户余额
+status	TINYINT	非空，默认1	账户状态（1=启用，0=禁用）
+created_at	DATETIME(3)	非空	创建时间
+updated_at	DATETIME(3)	非空	更新时间
 
 索引：
-1. uk_account_no(account_no)
-2. idx_account_status(status)
 
-#### 2.1.2 account_balance_history（账户余额流水表）
+uk_account_no(account_no)
+idx_account_status(status)
+2.1.2 account_balance_history（账户余额流水表）
 
-**用途**：记录每笔支付交易前后的账户余额快照，用于对账、审计和余额追溯。
+用途：
 
-字段：
-1. id，BIGINT，主键，自增，非空
-2. account_id，BIGINT，非空，账户ID（支付方或收款方）
-3. payment_id，BIGINT，非空，关联支付ID
-4. operation_type，VARCHAR(16)，非空，操作类型：DEBIT(扣款) / CREDIT(入账)
-5. balance_before，DECIMAL(18,2)，非空，操作前余额
-6. balance_after，DECIMAL(18,2)，非空，操作后余额
-7. amount，DECIMAL(18,2)，非空，交易金额
-8. description，VARCHAR(255)，可空，操作描述（如"Payment ABC123"）
-9. event_time，DATETIME(3)，非空，事件发生时间
-10. created_at，DATETIME(3)，非空，默认当前时间
+记录账户每一次余额变动的信息，包括交易前余额、交易后余额及交易金额，用于交易审计、余额追踪和对账。
 
-索引：
-1. idx_history_account_payment(account_id, payment_id)
-2. idx_history_account_time(account_id, event_time)
-3. idx_history_payment_id(payment_id)
-
-#### 2.1.3 currency_dict（币种字典表）
-
-字段：
-1. code，CHAR(3)，主键，非空，ISO4217 币种代码
-2. name_cn，VARCHAR(32)，非空，中文名
-3. enabled，TINYINT，非空，默认 1，是否启用
-4. scale，TINYINT，非空，默认 2，小数位
-5. created_at，DATETIME(3)，非空，默认当前时间
-6. updated_at，DATETIME(3)，非空，默认当前时间，自动更新
+字段	类型	说明
+id	BIGINT	主键，自增
+account_id	BIGINT	账户ID
+payment_id	BIGINT	支付ID
+operation_type	VARCHAR(16)	操作类型（DEBIT=扣款、CREDIT=入账）
+balance_before	DECIMAL	操作前余额
+balance_after	DECIMAL	操作后余额
+amount	DECIMAL	本次交易金额
+description	VARCHAR(255)	操作描述
+created_at	DATETIME(3)	创建时间
 
 索引：
-1. idx_currency_enabled(enabled)
 
-#### 2.1.4 payment（支付主表）
+idx_history_account_payment(account_id, payment_id)
+idx_history_account_time(account_id, created_at)
+idx_history_payment_id(payment_id)
+2.1.3 currency_dict（币种字典表）
 
-字段：
-1. id，BIGINT，主键，自增，非空
-2. payment_no，VARCHAR(32)，唯一，非空，订单号（客户端传入，同时作为幂等键）
-3. source_account_id，BIGINT，非空，付款账户ID
-4. destination_account_no，VARCHAR(32)，非空，收款账户号
-5. amount，DECIMAL(18,2)，非空，支付金额
-6. currency，CHAR(3)，非空，支付币种
-7. reference，VARCHAR(128)，可空，备注
-8. status，VARCHAR(16)，非空，默认 CREATED，支付状态
-9. failure_code，VARCHAR(64)，可空，失败业务码
-10. failure_message，VARCHAR(255)，可空，失败说明
-11. validated_at，DATETIME(3)，可空
-12. sent_at，DATETIME(3)，可空
-13. completed_at，DATETIME(3)，可空
-14. failed_at，DATETIME(3)，可空
-15. version，INT，非空，默认 0，乐观锁版本号
-16. created_at，DATETIME(3)，非空，默认当前时间
-17. updated_at，DATETIME(3)，非空，默认当前时间，自动更新
+用途：
+
+维护系统支持的所有币种信息，为支付业务提供统一的币种管理。
+
+字段	类型	说明
+id	BIGINT	主键，自增
+code	CHAR(3)	ISO4217币种代码
+code_name	VARCHAR(100)	币种名称
+country_name	VARCHAR(100)	国家名称
+enabled	TINYINT	是否启用（1=启用，0=禁用）
+scale	TINYINT	小数位数
+created_at	DATETIME(3)	创建时间
+updated_at	DATETIME(3)	更新时间
 
 索引：
-1. uk_payment_no(payment_no)
-2. idx_payment_status(status)
-3. idx_payment_created_at(created_at)
-4. idx_payment_status_created(status, created_at)
-5. idx_payment_source_account(source_account_id)
 
-#### 2.1.5 payment_status_history（状态历史表）
+idx_currency_enabled(enabled)
+2.1.4 payment（支付主表）
 
-字段：
-1. id，BIGINT，主键，自增，非空
-2. payment_id，BIGINT，非空，支付ID
-3. from_status，VARCHAR(16)，可空，原状态
-4. to_status，VARCHAR(16)，非空，目标状态
-5. trigger_type，VARCHAR(16)，非空，触发类型（API/SYSTEM）
-6. trigger_by，VARCHAR(64)，非空，默认 SYSTEM，触发者
-7. reason，VARCHAR(255)，可空，触发原因
-8. error_code，VARCHAR(64)，可空，错误码
-9. error_message，VARCHAR(255)，可空，错误描述
-10. event_time，DATETIME(3)，非空，事件时间
-11. created_at，DATETIME(3)，非空，默认当前时间
+用途：
+
+记录支付交易的完整生命周期，包括付款方、收款方、支付金额、支付状态以及失败原因等信息。
+
+字段	类型	说明
+id	BIGINT	主键，自增
+payment_no	VARCHAR(32)	支付流水号（客户端生成，同时作为幂等键）
+source_account_id	BIGINT	付款账户ID
+destination_account_id	BIGINT	收款账户ID
+amount	DECIMAL	支付金额
+currency	CHAR(3)	支付币种
+reference	VARCHAR(128)	支付备注
+status	VARCHAR(16)	支付状态
+failure_code	VARCHAR(64)	失败错误码
+failure_message	VARCHAR(255)	失败原因
+validated_at	DATETIME(3)	校验完成时间
+sent_at	DATETIME(3)	支付发送时间
+completed_at	DATETIME(3)	支付完成时间
+failed_at	DATETIME(3)	支付失败时间
+version	INT	乐观锁版本号
+created_at	DATETIME(3)	创建时间
+updated_at	DATETIME(3)	更新时间
 
 索引：
-1. idx_history_payment_time(payment_id, event_time)
-2. idx_history_to_status(to_status)
 
-### 2.2 表关系
+uk_payment_no(payment_no)
+idx_payment_status(status)
+idx_payment_created_at(created_at)
+idx_payment_status_created(status, created_at)
+idx_payment_source_account(source_account_id)
+2.1.5 payment_status_history（支付状态历史表）
 
-1. payment.source_account_id -> account.id（多对一）
-2. account_balance_history.account_id -> account.id（多对一）
-3. account_balance_history.payment_id -> payment.id（多对一）
-4. payment_status_history.payment_id -> payment.id（一对多）
-5. payment.currency 与 currency_dict.code（逻辑关联）
+用途：
 
-### 2.3 可直接执行建表语句
+记录支付状态的变化过程，方便后续查询、问题定位以及系统审计。
 
-```sql
-CREATE TABLE account (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
-  account_no VARCHAR(32) NOT NULL COMMENT '账户号',
-  account_name VARCHAR(64) NOT NULL COMMENT '账户名称',
-  currency CHAR(3) NOT NULL COMMENT '账户币种',
-  balance DECIMAL(18,2) NOT NULL DEFAULT 0.00 COMMENT '账户余额',
-  status TINYINT NOT NULL DEFAULT 1 COMMENT '状态:1启用0禁用',
-  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
-  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
-  UNIQUE KEY uk_account_no (account_no),
-  KEY idx_account_status (status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='账户表';
+字段	类型	说明
+id	BIGINT	主键，自增
+payment_id	BIGINT	支付ID
+from_status	VARCHAR(16)	原状态
+to_status	VARCHAR(16)	当前状态
+reference	VARCHAR(255)	状态变更备注
+error_code	VARCHAR(64)	错误码
+error_message	VARCHAR(255)	错误描述
+created_at	DATETIME(3)	创建时间
 
-CREATE TABLE account_balance_history (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
-  account_id BIGINT NOT NULL COMMENT '账户ID',
-  payment_id BIGINT NOT NULL COMMENT '支付ID',
-  operation_type VARCHAR(16) NOT NULL COMMENT '操作类型: DEBIT扣款/CREDIT入账',
-  balance_before DECIMAL(18,2) NOT NULL COMMENT '操作前余额',
-  balance_after DECIMAL(18,2) NOT NULL COMMENT '操作后余额',
-  amount DECIMAL(18,2) NOT NULL COMMENT '交易金额',
-  description VARCHAR(255) DEFAULT NULL COMMENT '操作描述',
-  event_time DATETIME(3) NOT NULL COMMENT '事件发生时间',
-  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
-  KEY idx_history_account_payment (account_id, payment_id),
-  KEY idx_history_account_time (account_id, event_time),
-  KEY idx_history_payment_id (payment_id),
-  CONSTRAINT fk_history_account FOREIGN KEY (account_id) REFERENCES account(id),
-  CONSTRAINT fk_history_payment FOREIGN KEY (payment_id) REFERENCES payment(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='账户余额流水表';
+索引：
 
-CREATE TABLE currency_dict (
-  code CHAR(3) PRIMARY KEY COMMENT 'ISO4217币种编码',
-  name_cn VARCHAR(32) NOT NULL COMMENT '中文名称',
-  enabled TINYINT NOT NULL DEFAULT 1 COMMENT '是否启用',
-  scale TINYINT NOT NULL DEFAULT 2 COMMENT '小数位',
-  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
-  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
-  KEY idx_currency_enabled (enabled)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='币种字典表';
+idx_history_payment_time(payment_id, created_at)
+idx_history_to_status(to_status)
+2.2 表关系
 
-CREATE TABLE payment (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
-  payment_no VARCHAR(32) NOT NULL COMMENT '订单号(客户端传入, 同时作为幂等键)',
-  source_account_id BIGINT NOT NULL COMMENT '付款方账户ID',
-  destination_account_no VARCHAR(32) NOT NULL COMMENT '收款账户号',
-  amount DECIMAL(18,2) NOT NULL COMMENT '支付金额',
-  currency CHAR(3) NOT NULL COMMENT '支付币种',
-  reference VARCHAR(128) DEFAULT NULL COMMENT '备注',
-  status VARCHAR(16) NOT NULL DEFAULT 'CREATED' COMMENT '支付状态',
-  failure_code VARCHAR(64) DEFAULT NULL COMMENT '失败错误码',
-  failure_message VARCHAR(255) DEFAULT NULL COMMENT '失败详情',
-  validated_at DATETIME(3) DEFAULT NULL COMMENT '校验通过时间',
-  sent_at DATETIME(3) DEFAULT NULL COMMENT '发送时间',
-  completed_at DATETIME(3) DEFAULT NULL COMMENT '完成时间',
-  failed_at DATETIME(3) DEFAULT NULL COMMENT '失败时间',
-  version INT NOT NULL DEFAULT 0 COMMENT '乐观锁版本号',
-  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
-  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
-  UNIQUE KEY uk_payment_no (payment_no),
-  KEY idx_payment_status (status),
-  KEY idx_payment_created_at (created_at),
-  KEY idx_payment_status_created (status, created_at),
-  KEY idx_payment_source_account (source_account_id),
-  CONSTRAINT fk_payment_source_account FOREIGN KEY (source_account_id) REFERENCES account(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='支付主表';
+本系统各数据表之间的关系如下：
 
-CREATE TABLE payment_status_history (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
-  payment_id BIGINT NOT NULL COMMENT '支付ID',
-  from_status VARCHAR(16) DEFAULT NULL COMMENT '原状态',
-  to_status VARCHAR(16) NOT NULL COMMENT '目标状态',
-  trigger_type VARCHAR(16) NOT NULL COMMENT '触发类型 API/SYSTEM',
-  trigger_by VARCHAR(64) NOT NULL DEFAULT 'SYSTEM' COMMENT '触发人或系统',
-  reason VARCHAR(255) DEFAULT NULL COMMENT '原因说明',
-  error_code VARCHAR(64) DEFAULT NULL COMMENT '错误码',
-  error_message VARCHAR(255) DEFAULT NULL COMMENT '错误信息',
-  event_time DATETIME(3) NOT NULL COMMENT '事件发生时间',
-  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
-  KEY idx_history_payment_time (payment_id, event_time),
-  KEY idx_history_to_status (to_status),
-  CONSTRAINT fk_history_payment FOREIGN KEY (payment_id) REFERENCES payment(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='支付状态历史表';
+payment.source_account_id → account.id（多对一）
+一个账户可以作为付款方参与多笔支付。
+payment.destination_account_id → account.id（多对一）
+一个账户可以作为收款方接收多笔支付。
+account_balance_history.account_id → account.id（多对一）
+一个账户对应多条余额流水记录。
+account_balance_history.payment_id → payment.id（多对一）
+一笔支付可以关联账户余额变动记录。
+payment_status_history.payment_id → payment.id（一对多）
+一笔支付可以产生多次状态变化记录。
+payment.currency ↔ currency_dict.code（逻辑关联）
+支付表中的币种代码来源于币种字典表，用于校验支付币种是否合法。
 ```
 
 ---
@@ -342,31 +268,33 @@ CREATE TABLE payment_status_history (
 | PROCESSING_ERROR | 500 | 系统内部异常 |
 | NETWORK_ERROR | 503 | 模拟网络通信失败 |
 
-### 4.3 各接口详细说明
+## 4.3 各接口详细说明
 
 ---
 
-#### 接口 1：创建支付
+### 接口 1：创建支付
+
 - **URL**：`POST /api/v1/payments`
-- **用途**：创建支付单，初始状态为 CREATED
+- **用途**：创建支付订单，初始状态为 CREATED
 - **幂等**：同一 paymentNo 重复请求返回已存在记录，不再新建
 
 **请求体 `PaymentCreateReqDTO`：**
 
 | 参数名 | 类型 | 必传 | 校验规则 | 说明 |
 |---|---|---|---|---|
-| paymentNo | String | 是 | 非空，长度≤32，唯一 | 订单号（客户端传入，同时作为幂等键） |
-| sourceAccountNo | String | 是 | 非空，长度≤32 | 付款方账户号 |
-| destinationAccountNo | String | 是 | 非空，长度≤32 | 收款方账户号 |
+| paymentNo | String | 是 | 非空，长度≤32，唯一 | 支付流水号（客户端传入，同时作为幂等键） |
+| sourceAccountId | Long | 是 | >0 | 付款账户ID |
+| destinationAccountId | Long | 是 | >0 | 收款账户ID |
 | amount | BigDecimal | 是 | >0，≤1000000，最多2位小数 | 支付金额 |
 | currency | String | 是 | 非空，3位大写字母 | ISO4217 币种，如 USD |
-| reference | String | 否 | 长度≤128 | 备注说明 |
+| reference | String | 否 | 长度≤128 | 支付备注 |
 
 **返回 `Result<PaymentDetailVO>`**（字段见接口2返回说明）
 
 ---
 
-#### 接口 2：查询支付详情
+### 接口 2：查询支付详情
+
 - **URL**：`GET /api/v1/payments/{paymentId}`
 - **用途**：查看单笔支付完整信息和当前状态
 
@@ -381,12 +309,12 @@ CREATE TABLE payment_status_history (
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | paymentId | Long | 支付ID |
-| paymentNo | String | 订单号（客户端传入） |
-| sourceAccountNo | String | 付款账户号 |
-| destinationAccountNo | String | 收款账户号 |
-| amount | BigDecimal | 金额 |
+| paymentNo | String | 支付流水号 |
+| sourceAccountId | Long | 付款账户ID |
+| destinationAccountId | Long | 收款账户ID |
+| amount | BigDecimal | 支付金额 |
 | currency | String | 币种 |
-| reference | String | 备注 |
+| reference | String | 支付备注 |
 | status | String | 当前状态 |
 | failureCode | String | 失败业务码（失败时有值） |
 | failureMessage | String | 失败描述（失败时有值） |
@@ -399,7 +327,8 @@ CREATE TABLE payment_status_history (
 
 ---
 
-#### 接口 3：分页查询支付列表
+### 接口 3：分页查询支付列表
+
 - **URL**：`GET /api/v1/payments`
 - **用途**：按条件筛选支付记录，支持分页
 
@@ -408,35 +337,36 @@ CREATE TABLE payment_status_history (
 | 参数名 | 类型 | 必传 | 说明 |
 |---|---|---|---|
 | status | String | 否 | 按状态过滤（精确匹配） |
-| paymentNo | String | 否 | 订单号模糊搜索 |
+| paymentNo | String | 否 | 支付流水号模糊搜索 |
 | reference | String | 否 | 备注模糊搜索 |
 | currency | String | 否 | 按币种过滤 |
 | createdFrom | String | 否 | 创建时间起（ISO8601） |
-| createdTo | String | 否 | 创建时间止 |
-| pageNum | int | 否 | 页码，默认 1 |
-| pageSize | int | 否 | 每页条数，默认 10，最大 100 |
+| createdTo | String | 否 | 创建时间止（ISO8601） |
+| pageNum | int | 否 | 页码，默认1 |
+| pageSize | int | 否 | 每页数量，默认10，最大100 |
 
 **返回 `Result<PageResult<PaymentListItemVO>>`：**
 
-`PaymentListItemVO` 字段：
+**PaymentListItemVO**
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | paymentId | Long | 支付ID |
-| paymentNo | String | 订单号 |
-| sourceAccountNo | String | 付款账户号 |
-| destinationAccountNo | String | 收款账户号 |
-| amount | BigDecimal | 金额 |
+| paymentNo | String | 支付流水号 |
+| sourceAccountId | Long | 付款账户ID |
+| destinationAccountId | Long | 收款账户ID |
+| amount | BigDecimal | 支付金额 |
 | currency | String | 币种 |
 | status | String | 当前状态 |
 | createdAt | String | 创建时间 |
 
 ---
 
-#### 接口 4：查询状态历史（时间线）
+### 接口 4：查询状态历史
+
 - **URL**：`GET /api/v1/payments/{paymentId}/histories`
-- **用途**：查看单笔支付完整状态变更轨迹，用于时间线展示
-- **说明**：不分页，按 event_time 升序，返回全量历史记录
+- **用途**：查看支付状态变更历史，用于时间线展示
+- **说明**：不分页，按 created_at 升序返回
 
 **路径参数：**
 
@@ -451,19 +381,18 @@ CREATE TABLE payment_status_history (
 | historyId | Long | 历史记录ID |
 | fromStatus | String | 原状态（首次创建时为 null） |
 | toStatus | String | 目标状态 |
-| triggerType | String | 触发类型：API / SYSTEM |
-| triggerBy | String | 触发者，默认 SYSTEM |
-| reason | String | 原因说明 |
+| reference | String | 状态变更备注 |
 | errorCode | String | 错误码（失败节点有值） |
 | errorMessage | String | 错误描述（失败节点有值） |
-| eventTime | String | 事件发生时间 |
+| createdAt | String | 创建时间 |
 
 ---
 
-#### 接口 5：执行校验
+### 接口 5：执行校验
+
 - **URL**：`POST /api/v1/payments/{paymentId}/validate`
-- **用途**：触发 CREATED → VALIDATED，业务校验失败则转 FAILED
-- **事务**：主表更新 + 历史记录插入，一个事务
+- **用途**：触发 CREATED → VALIDATED，校验失败则转 FAILED
+- **事务**：支付表更新 + 状态历史新增 + 余额流水新增（如涉及），统一事务
 
 **路径参数：**
 
@@ -475,35 +404,58 @@ CREATE TABLE payment_status_history (
 
 | 参数名 | 类型 | 必传 | 说明 |
 |---|---|---|---|
-| reason | String | 否 | 操作原因，写入历史表 reason 字段 |
+| reference | String | 否 | 状态变更备注，保存到 payment_status_history.reference |
 
-**返回 `Result<PaymentDetailVO>`**（返回流转后最新状态）
+**返回 `Result<PaymentDetailVO>`**
 
 ---
 
-#### 接口 6：执行发送
+### 接口 6：执行发送
+
 - **URL**：`POST /api/v1/payments/{paymentId}/send`
 - **用途**：触发 VALIDATED → SENT，模拟发送失败则转 FAILED
 
-**路径参数 / 请求体**：同接口5
+**路径参数：**
+
+| 参数名 | 类型 | 必传 | 说明 |
+|---|---|---|---|
+| paymentId | Long | 是 | 支付主键ID |
+
+**请求体 `PaymentActionReqDTO`：**
+
+| 参数名 | 类型 | 必传 | 说明 |
+|---|---|---|---|
+| reference | String | 否 | 状态变更备注 |
 
 **返回 `Result<PaymentDetailVO>`**
 
 ---
 
-#### 接口 7：执行完成
+### 接口 7：执行完成
+
 - **URL**：`POST /api/v1/payments/{paymentId}/complete`
 - **用途**：触发 SENT → COMPLETED，模拟清算失败则转 FAILED
 
-**路径参数 / 请求体**：同接口5
+**路径参数：**
+
+| 参数名 | 类型 | 必传 | 说明 |
+|---|---|---|---|
+| paymentId | Long | 是 | 支付主键ID |
+
+**请求体 `PaymentActionReqDTO`：**
+
+| 参数名 | 类型 | 必传 | 说明 |
+|---|---|---|---|
+| reference | String | 否 | 状态变更备注 |
 
 **返回 `Result<PaymentDetailVO>`**
 
 ---
 
-#### 接口 8：手工置失败
+### 接口 8：手工置失败
+
 - **URL**：`POST /api/v1/payments/{paymentId}/fail`
-- **用途**：CREATED / VALIDATED / SENT → FAILED，演示或管理场景
+- **用途**：CREATED / VALIDATED / SENT → FAILED，用于演示或后台管理
 
 **路径参数：**
 
@@ -515,17 +467,18 @@ CREATE TABLE payment_status_history (
 
 | 参数名 | 类型 | 必传 | 说明 |
 |---|---|---|---|
-| errorCode | String | 是 | 错误码，参考 ErrorCodeEnum |
+| errorCode | String | 是 | 错误码 |
 | errorMessage | String | 是 | 错误描述 |
-| reason | String | 否 | 操作原因，写入历史表 |
+| reference | String | 否 | 状态变更备注 |
 
 **返回 `Result<PaymentDetailVO>`**
 
 ---
 
-#### 接口 9：查询失败详情
+### 接口 9：查詢失败详情
+
 - **URL**：`GET /api/v1/payments/{paymentId}/failure`
-- **用途**：专门为失败详情页提供聚合数据
+- **用途**：查询支付失败详情
 
 **路径参数：**
 
@@ -538,40 +491,44 @@ CREATE TABLE payment_status_history (
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | paymentId | Long | 支付ID |
-| status | String | 当前状态（应为 FAILED） |
-| failureCode | String | 失败业务码 |
-| failureMessage | String | 失败详细描述 |
+| status | String | 当前状态（FAILED） |
+| failureCode | String | 错误码 |
+| failureMessage | String | 错误描述 |
 | failedAt | String | 失败时间 |
 
 ---
 
-#### 接口 10：查询币种字典
+### 接口 10：查询币种字典
+
 - **URL**：`GET /api/v1/dicts/currencies`
-- **用途**：前端创建支付表单下拉项数据源
+- **用途**：获取系统支持的币种列表
 
 **查询参数：**
 
 | 参数名 | 类型 | 必传 | 说明 |
 |---|---|---|---|
-| enabled | int | 否 | 1=启用（默认），0=全部 |
+| enabled | int | 否 | 1=仅启用（默认），0=查询全部 |
 
 **返回 `Result<List<CurrencyVO>>`：**
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| code | String | 币种代码，如 USD |
-| nameCn | String | 中文名称 |
-| scale | int | 小数位数 |
+| id | Long | 主键ID |
+| code | String | ISO4217币种编码 |
+| codeName | String | 币种名称 |
+| countryName | String | 国家名称 |
+| enabled | Integer | 是否启用 |
+| scale | Integer | 小数位数 |
 
 ---
 
-## 5. 后端代码分层设计
+# 5 后端代码分层设计
 
-### 5.1 包结构
+## 5.1 包结构
 
 1. com.example.payment.controller
-2. com.example.payment.service（接口定义）
-3. com.example.payment.service.impl（ServiceImpl + RuleChecker + StateMachine）
+2. com.example.payment.service
+3. com.example.payment.service.impl
 4. com.example.payment.domain.entity
 5. com.example.payment.domain.dto
 6. com.example.payment.domain.vo
@@ -581,37 +538,97 @@ CREATE TABLE payment_status_history (
 10. com.example.payment.common
 11. com.example.payment.config
 
-说明：PaymentRuleChecker 和 PaymentStateMachine 放在 service.impl 包下，作为 Service 的内部组件（Spring Bean），不独立分层。
+**说明：**
 
-### 5.2 校验职责分层（最终定稿）
+PaymentRuleChecker 和 PaymentStateMachine 放在 `service.impl` 包下，作为 Service 的内部组件（Spring Bean），不单独拆分层次。
 
-**第一层：前端（Vue3）**
-- 必填、长度、格式的友好提示（不可信，仅提升体验）
+---
 
-**第二层：Controller（接口入参格式校验）**
-- 使用 Spring Validation 注解
-- @NotBlank：paymentNo、sourceAccountNo、destinationAccountNo、currency
-- @Size(max=32)：paymentNo
-- @NotNull + @DecimalMin("0.01") + @DecimalMax("1000000")：amount
-- @Pattern(regexp="[A-Z]{3}")：currency 格式
-- @Size(max=128)：reference
-- 校验失败直接返回 HTTP 400，业务码 VALIDATION_FAILED
+## 5.2 校验职责分层
 
-**第三层：Service 内部（核心业务规则，由 PaymentRuleChecker 承载）**
-- 付款账户是否存在且状态为启用
-- 目标账户号与源账户号不能相同
-- 币种是否在 currency_dict 中且 enabled=1
-- 余额是否充足（模拟校验即可）
-- 同一个 PaymentRuleChecker 可被 createPayment 和 validatePayment 复用
+### 第一层：前端（Vue3）
 
-**第四层：Service 内部（状态流转规则，由 PaymentStateMachine 承载）**
-- validate/send/complete/fail 操作前调用 canTransit(fromStatus, toStatus)
-- 白名单枚举，非法流转直接抛出 INVALID_STATUS_TRANSITION
+- 必填项校验
+- 长度校验
+- 金额格式校验
+- 币种格式校验
+- 用户友好提示（仅提升体验，不可信）
 
-**第五层：数据库约束（兜底）**
-- payment_no 唯一索引：防重复创建（订单号幂等）
-- version 乐观锁：防并发覆盖
-- 非空约束、外键约束
+---
+
+### 第二层：Controller（接口参数校验）
+
+使用 Spring Validation 注解：
+
+- `@NotBlank`：paymentNo、currency
+- `@NotNull`：sourceAccountId、destinationAccountId、amount
+- `@Positive`：sourceAccountId、destinationAccountId
+- `@DecimalMin("0.01")`
+- `@DecimalMax("1000000")`
+- `@Pattern(regexp="[A-Z]{3}")`：currency
+- `@Size(max=128)`：reference
+
+参数校验失败直接返回 **HTTP 400**，业务码 **VALIDATION_FAILED**。
+
+---
+
+### 第三层：Service（业务规则，由 PaymentRuleChecker 实现）
+
+负责核心业务校验：
+
+- 付款账户是否存在
+- 收款账户是否存在
+- 付款账户状态是否启用
+- 收款账户状态是否启用
+- 付款账户余额是否充足
+- 付款账户与收款账户不能相同
+- 币种是否存在于 `currency_dict`
+
+
+PaymentRuleChecker 可在 createPayment()、validatePayment() 等业务中复用。
+
+---
+
+### 第四层：Service（状态流转，由 PaymentStateMachine 实现）
+
+所有状态流转必须先调用：
+
+```
+canTransit(fromStatus, toStatus)
+```
+
+允许状态流转：
+
+```
+CREATED
+↓
+VALIDATED
+↓
+SENT
+↓
+COMPLETED
+
+CREATED
+VALIDATED
+SENT
+↓
+FAILED
+```
+
+非法状态流转统一抛出：
+
+```
+INVALID_STATUS_TRANSITION
+```
+
+---
+
+### 第五层：数据库约束（最终保障）
+
+- payment.payment_no 唯一索引（订单幂等）
+- version 乐观锁（防止并发覆盖）
+- NOT NULL 非空约束
+
 
 ### 5.3 关键类清单
 

@@ -9,5 +9,7 @@ import java.util.List;
 public interface CurrencyDictMapper {
 
     List<CurrencyDict> getAllCurrency();
+
+    CurrencyDict selectByCode(String code);
 }
 

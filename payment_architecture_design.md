@@ -110,8 +110,8 @@
 字段：
 1. id，BIGINT，主键
 2. code，CHAR(3)，非空，ISO4217 币种代码
-3. code_name, VARCHAR(32)，非空，币种名称
-4. country_name， VARCHAR(32)，非空，国家名称
+3. code_name, VARCHAR(100)，非空，币种名称
+4. country_name， VARCHAR(100)，非空，国家名称
 
 
 #### 2.1.4 payment（支付主表）

@@ -3,6 +3,29 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.hsbc.triocodebackend.mapper.PaymentMapper">
 
+    <sql id="queryConditions">
+        <where>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+            <if test="paymentNo != null and paymentNo != ''">
+                AND payment_no LIKE CONCAT('%', #{paymentNo}, '%')
+            </if>
+            <if test="reference != null and reference != ''">
+                AND reference LIKE CONCAT('%', #{reference}, '%')
+            </if>
+            <if test="currency != null and currency != ''">
+                AND currency = #{currency}
+            </if>
+            <if test="createdFrom != null">
+                AND created_at <![CDATA[>=]]> #{createdFrom}
+            </if>
+            <if test="createdTo != null">
+                AND created_at <![CDATA[<=]]> #{createdTo}
+            </if>
+        </where>
+    </sql>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO payment (payment_no, source_account_id, destination_account_id, amount,
                              currency, reference, status, version)
@@ -33,5 +56,25 @@
           AND status  = #{expectedStatus}
     </update>
 
-</mapper>
+    <select id="countByQuery" resultType="long">
+        SELECT COUNT(1)
+        FROM payment
+        <include refid="queryConditions"/>
+    </select>
 
+    <select id="selectPageByQuery" resultType="Payment">
+        SELECT id,
+               payment_no,
+               source_account_id,
+               destination_account_id,
+               amount,
+               currency,
+               status,
+               created_at
+        FROM payment
+        <include refid="queryConditions"/>
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+</mapper>

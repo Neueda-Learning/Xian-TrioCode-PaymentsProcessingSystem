@@ -6,6 +6,7 @@ import org.hsbc.triocodebackend.common.constants.Constants;
 import org.hsbc.triocodebackend.common.enums.ErrorCodeEnum;
 import org.hsbc.triocodebackend.common.enums.PaymentStatusEnum;
 import org.hsbc.triocodebackend.common.exception.BizException;
+import org.hsbc.triocodebackend.common.result.PageResult;
 import org.hsbc.triocodebackend.mapper.AccountBalanceHistoryMapper;
 import org.hsbc.triocodebackend.mapper.AccountMapper;
 import org.hsbc.triocodebackend.mapper.PaymentMapper;
@@ -15,8 +16,10 @@ import org.hsbc.triocodebackend.model.AccountBalanceHistory;
 import org.hsbc.triocodebackend.model.Payment;
 import org.hsbc.triocodebackend.model.PaymentStatusHistory;
 import org.hsbc.triocodebackend.model.dto.PaymentCreateReqDTO;
+import org.hsbc.triocodebackend.model.dto.PaymentListQueryDTO;
 import org.hsbc.triocodebackend.model.vo.PaymentDetailVO;
 import org.hsbc.triocodebackend.model.vo.PaymentHistoryVO;
+import org.hsbc.triocodebackend.model.vo.PaymentListItemVO;
 import org.hsbc.triocodebackend.service.PaymentRuleChecker;
 import org.hsbc.triocodebackend.service.PaymentService;
 import org.hsbc.triocodebackend.service.PaymentStateMachine;
@@ -28,6 +31,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -171,6 +175,33 @@ public class PaymentServiceImpl implements PaymentService {
             throw new BizException(ErrorCodeEnum.PAYMENT_NOT_FOUND);
         }
         return getHistories(payment.getId());
+    }
+
+    @Override
+    public PageResult<PaymentListItemVO> queryPayments(PaymentListQueryDTO query) {
+        int pageNum = query.getPageNum() == null ? 1 : query.getPageNum();
+        int pageSize = query.getPageSize() == null ? 10 : query.getPageSize();
+        int offset = (pageNum - 1) * pageSize;
+
+        String status = trimToNull(query.getStatus());
+        String paymentNo = trimToNull(query.getPaymentNo());
+        String reference = trimToNull(query.getReference());
+        String currency = trimToNull(query.getCurrency());
+        LocalDateTime createdFrom = query.getCreatedFrom();
+        LocalDateTime createdTo = query.getCreatedTo();
+
+        long total = paymentMapper.countByQuery(status, paymentNo, reference, currency, createdFrom, createdTo);
+        if (total == 0) {
+            return PageResult.empty(pageNum, pageSize);
+        }
+
+        List<PaymentListItemVO> records = paymentMapper.selectPageByQuery(
+                        status, paymentNo, reference, currency, createdFrom, createdTo, offset, pageSize)
+                .stream()
+                .filter(Objects::nonNull)
+                .map(this::toListItemVO)
+                .collect(Collectors.toList());
+        return PageResult.of(records, total, pageNum, pageSize);
     }
 
     // ----------------------------------------------------------------
@@ -343,5 +374,25 @@ public class PaymentServiceImpl implements PaymentService {
         vo.setCreatedAt(h.getCreatedAt());
         return vo;
     }
-}
 
+    private PaymentListItemVO toListItemVO(Payment p) {
+        PaymentListItemVO vo = new PaymentListItemVO();
+        vo.setPaymentId(p.getId());
+        vo.setPaymentNo(p.getPaymentNo());
+        vo.setSourceAccountId(p.getSourceAccountId());
+        vo.setDestinationAccountId(p.getDestinationAccountId());
+        vo.setAmount(p.getAmount());
+        vo.setCurrency(p.getCurrency());
+        vo.setStatus(p.getStatus());
+        vo.setCreatedAt(p.getCreatedAt());
+        return vo;
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+}

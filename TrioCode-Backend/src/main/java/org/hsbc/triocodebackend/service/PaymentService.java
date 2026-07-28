@@ -1,8 +1,11 @@
 package org.hsbc.triocodebackend.service;
 
+import org.hsbc.triocodebackend.common.result.PageResult;
 import org.hsbc.triocodebackend.model.dto.PaymentCreateReqDTO;
+import org.hsbc.triocodebackend.model.dto.PaymentListQueryDTO;
 import org.hsbc.triocodebackend.model.vo.PaymentDetailVO;
 import org.hsbc.triocodebackend.model.vo.PaymentHistoryVO;
+import org.hsbc.triocodebackend.model.vo.PaymentListItemVO;
 
 import java.util.List;
 
@@ -25,5 +28,9 @@ public interface PaymentService {
      * 先通过 paymentNo 定位 paymentId，再复用 getHistories 的逻辑。
      */
     List<PaymentHistoryVO> getHistoriesByPaymentNo(String paymentNo);
-}
 
+    /**
+     * 分页查询支付列表。
+     */
+    PageResult<PaymentListItemVO> queryPayments(PaymentListQueryDTO query);
+}

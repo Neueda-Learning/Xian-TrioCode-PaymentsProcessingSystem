@@ -4,6 +4,9 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.hsbc.triocodebackend.model.Payment;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
 @Mapper
 public interface PaymentMapper {
 
@@ -20,5 +23,20 @@ public interface PaymentMapper {
      */
     int updateStatusWithLock(@Param("payment") Payment payment,
                              @Param("expectedStatus") String expectedStatus);
-}
 
+    long countByQuery(@Param("status") String status,
+                      @Param("paymentNo") String paymentNo,
+                      @Param("reference") String reference,
+                      @Param("currency") String currency,
+                      @Param("createdFrom") LocalDateTime createdFrom,
+                      @Param("createdTo") LocalDateTime createdTo);
+
+    List<Payment> selectPageByQuery(@Param("status") String status,
+                                    @Param("paymentNo") String paymentNo,
+                                    @Param("reference") String reference,
+                                    @Param("currency") String currency,
+                                    @Param("createdFrom") LocalDateTime createdFrom,
+                                    @Param("createdTo") LocalDateTime createdTo,
+                                    @Param("offset") int offset,
+                                    @Param("limit") int limit);
+}

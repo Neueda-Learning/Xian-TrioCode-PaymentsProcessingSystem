@@ -2,10 +2,13 @@ package org.hsbc.triocodebackend.controller;
 
 import org.springframework.validation.annotation.Validated;
 import lombok.RequiredArgsConstructor;
+import org.hsbc.triocodebackend.common.result.PageResult;
 import org.hsbc.triocodebackend.common.result.Result;
 import org.hsbc.triocodebackend.model.dto.PaymentCreateReqDTO;
+import org.hsbc.triocodebackend.model.dto.PaymentListQueryDTO;
 import org.hsbc.triocodebackend.model.vo.PaymentDetailVO;
 import org.hsbc.triocodebackend.model.vo.PaymentHistoryVO;
+import org.hsbc.triocodebackend.model.vo.PaymentListItemVO;
 import org.hsbc.triocodebackend.service.PaymentService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -45,6 +48,15 @@ public class PaymentController {
     }
 
     /**
+     * 分页查询支付列表。
+     */
+    @GetMapping("/payments")
+    public Result<PageResult<PaymentListItemVO>> queryPayments(@Validated PaymentListQueryDTO query) {
+        PageResult<PaymentListItemVO> page = paymentService.queryPayments(query);
+        return Result.ok(page);
+    }
+
+    /**
      * 查询单笔支付的完整状态变更历史（时间线）。
      * 不分页，按 created_at 升序返回全量记录。
      */
@@ -65,6 +77,5 @@ public class PaymentController {
         return Result.ok(list);
     }
 }
-
 
 

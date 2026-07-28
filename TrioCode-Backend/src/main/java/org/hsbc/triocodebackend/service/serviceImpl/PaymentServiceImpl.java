@@ -76,7 +76,7 @@ public class PaymentServiceImpl implements PaymentService {
         // ① 幂等判断：同一 paymentNo 直接返回已有记录
         Payment existing = paymentMapper.selectByPaymentNo(req.getPaymentNo());
         if (existing != null) {
-            log.info("[Payment] 幂等命中，paymentNo={}, status={}", req.getPaymentNo(), existing.getStatus());
+            log.info("[Payment] Idempotent hit, paymentNo={}, status={}", req.getPaymentNo(), existing.getStatus());
             return toVO(existing);
         }
 
@@ -98,20 +98,20 @@ public class PaymentServiceImpl implements PaymentService {
             Payment dup = paymentMapper.selectByPaymentNo(req.getPaymentNo());
             return toVO(dup);
         }
-        insertHistory(payment.getId(), null, PaymentStatusEnum.CREATED.name(), "支付创建", null, null);
-        log.info("[Payment] 创建成功, id={}, paymentNo={}", payment.getId(), payment.getPaymentNo());
+        insertHistory(payment.getId(), null, PaymentStatusEnum.CREATED.name(), "Payment created", null, null);
+        log.info("[Payment] Created successfully, id={}, paymentNo={}", payment.getId(), payment.getPaymentNo());
 
         // ③ 业务规则校验 → VALIDATED 或 FAILED
         try {
             ruleChecker.check(req);
         } catch (BizException e) {
-            log.warn("[Payment] 业务校验失败, id={}, reason={}", payment.getId(), e.getMessage());
+            log.warn("[Payment] Business validation failed, id={}, reason={}", payment.getId(), e.getMessage());
             failPayment(payment, PaymentStatusEnum.CREATED.name(),
                     e.getErrorCode().getCode(), e.getMessage());
             throw e;
         }
         transitionTo(payment, PaymentStatusEnum.CREATED.name(), PaymentStatusEnum.VALIDATED.name(),
-                p -> p.setValidatedAt(LocalDateTime.now()), "业务校验通过");
+                p -> p.setValidatedAt(LocalDateTime.now()), "Validation passed");
 
         // ④ 模拟发送（含重试）→ SENT 或 FAILED
         boolean sendOk = false;
@@ -121,7 +121,7 @@ public class PaymentServiceImpl implements PaymentService {
                 sendOk = true;
                 break;
             } catch (BizException e) {
-                log.warn("[Payment] 发送尝试 {}/{} 失败, id={}, reason={}",
+                log.warn("[Payment] Send attempt {}/{} failed, id={}, reason={}",
                         attempt, MAX_SEND_RETRIES, payment.getId(), e.getMessage());
                 if (attempt == MAX_SEND_RETRIES) {
                     failPayment(payment, PaymentStatusEnum.VALIDATED.name(),
@@ -132,25 +132,25 @@ public class PaymentServiceImpl implements PaymentService {
         }
         if (sendOk) {
             transitionTo(payment, PaymentStatusEnum.VALIDATED.name(), PaymentStatusEnum.SENT.name(),
-                    p -> p.setSentAt(LocalDateTime.now()), "发送成功");
+                    p -> p.setSentAt(LocalDateTime.now()), "Payment sent");
         }
 
         // ⑤ 模拟清算 → COMPLETED 或 FAILED
         try {
             simulateComplete();
         } catch (BizException e) {
-            log.warn("[Payment] 清算失败, id={}, reason={}", payment.getId(), e.getMessage());
+            log.warn("[Payment] Settlement failed, id={}, reason={}", payment.getId(), e.getMessage());
             failPayment(payment, PaymentStatusEnum.SENT.name(),
                     e.getErrorCode().getCode(), e.getMessage());
             throw e;
         }
         transitionTo(payment, PaymentStatusEnum.SENT.name(), PaymentStatusEnum.COMPLETED.name(),
-                p -> p.setCompletedAt(LocalDateTime.now()), "清算完成");
+                p -> p.setCompletedAt(LocalDateTime.now()), "Settlement completed");
 
         // ⑥ 完成：更新双方余额 + 写余额流水
         recordBalanceHistory(payment);
 
-        log.info("[Payment] 支付完成, id={}, paymentNo={}", payment.getId(), payment.getPaymentNo());
+        log.info("[Payment] Completed, id={}, paymentNo={}", payment.getId(), payment.getPaymentNo());
         return toVO(paymentMapper.selectById(payment.getId()));
     }
 
@@ -219,12 +219,13 @@ public class PaymentServiceImpl implements PaymentService {
 
         int rows = paymentMapper.updateStatusWithLock(payment, fromStatus);
         if (rows == 0) {
-            throw new BizException(ErrorCodeEnum.PROCESSING_ERROR, "并发冲突，状态更新失败");
+            throw new BizException(ErrorCodeEnum.PROCESSING_ERROR,
+                    "Status update failed due to a concurrent change.");
         }
         payment.setVersion(payment.getVersion() + 1); // 本地版本号同步
 
         insertHistory(payment.getId(), fromStatus, toStatus, reference, null, null);
-        log.info("[Payment] 状态流转 {} -> {}, id={}", fromStatus, toStatus, payment.getId());
+        log.info("[Payment] Status transition {} -> {}, id={}", fromStatus, toStatus, payment.getId());
     }
 
     /**
@@ -240,13 +241,14 @@ public class PaymentServiceImpl implements PaymentService {
 
         int rows = paymentMapper.updateStatusWithLock(payment, fromStatus);
         if (rows == 0) {
-            throw new BizException(ErrorCodeEnum.PROCESSING_ERROR, "并发冲突，FAILED状态更新失败");
+            throw new BizException(ErrorCodeEnum.PROCESSING_ERROR,
+                    "FAILED status update failed due to a concurrent change.");
         }
         payment.setVersion(payment.getVersion() + 1);
 
         insertHistory(payment.getId(), fromStatus, PaymentStatusEnum.FAILED.name(),
                 null, failureCode, failureMessage);
-        log.info("[Payment] 流转到 FAILED, id={}, code={}", payment.getId(), failureCode);
+        log.info("[Payment] Transitioned to FAILED, id={}, code={}", payment.getId(), failureCode);
     }
 
     private void insertHistory(Long paymentId, String fromStatus, String toStatus,
@@ -332,10 +334,10 @@ public class PaymentServiceImpl implements PaymentService {
     /**
      * 模拟清算步骤。
      * 当前设置为必定成功，可将下行注释打开演示失败：
-     *   if (RANDOM.nextInt(20) == 0) throw new BizException(ErrorCodeEnum.PROCESSING_ERROR, "清算系统暂时不可用");
+     *   if (RANDOM.nextInt(20) == 0) throw new BizException(ErrorCodeEnum.PROCESSING_ERROR, "The clearing system is temporarily unavailable.");
      */
     private void simulateComplete() {
-        // if (RANDOM.nextInt(20) == 0) throw new BizException(ErrorCodeEnum.PROCESSING_ERROR, "清算系统暂时不可用");
+        // if (RANDOM.nextInt(20) == 0) throw new BizException(ErrorCodeEnum.PROCESSING_ERROR, "The clearing system is temporarily unavailable.");
     }
 
     // ----------------------------------------------------------------
@@ -368,7 +370,7 @@ public class PaymentServiceImpl implements PaymentService {
         vo.setHistoryId(h.getId());
         vo.setFromStatus(h.getFromStatus());
         vo.setToStatus(h.getToStatus());
-        vo.setReference(h.getReference());
+        vo.setReference(normalizeHistoryReference(h.getReference()));
         vo.setErrorCode(h.getErrorCode());
         vo.setErrorMessage(h.getErrorMessage());
         vo.setCreatedAt(h.getCreatedAt());
@@ -394,5 +396,18 @@ public class PaymentServiceImpl implements PaymentService {
         }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String normalizeHistoryReference(String reference) {
+        if (reference == null) {
+            return null;
+        }
+        return switch (reference.trim()) {
+            case "支付创建" -> "Payment created";
+            case "业务校验通过" -> "Validation passed";
+            case "发送成功" -> "Payment sent";
+            case "清算完成" -> "Settlement completed";
+            default -> reference;
+        };
     }
 }

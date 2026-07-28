@@ -34,37 +34,41 @@ public class PaymentRuleChecker {
                 || amount.compareTo(Constants.Payment.MAX_AMOUNT_DECIMAL) >= 0
                 || amount.scale() > Constants.Payment.CURRENCY_SCALE) {
             throw new BizException(ErrorCodeEnum.INVALID_AMOUNT,
-                    "金额必须大于0且小于" + Constants.Payment.MAX_AMOUNT + "，并保留"
-                            + Constants.Payment.CURRENCY_SCALE + "位小数");
+                    "The amount must be greater than 0 and less than " + Constants.Payment.MAX_AMOUNT
+                            + ", with up to " + Constants.Payment.CURRENCY_SCALE + " decimal places.");
         }
 
         // 1. 付款账户与收款账户不能相同
         if (req.getSourceAccountId().equals(req.getDestinationAccountId())) {
-            throw new BizException(ErrorCodeEnum.INVALID_ACCOUNT, "付款账户与收款账户不能相同");
+            throw new BizException(ErrorCodeEnum.INVALID_ACCOUNT,
+                    "The source and destination accounts cannot be the same.");
         }
 
         // 2. 校验币种是否支持
         CurrencyDict currency = currencyDictMapper.selectByCode(req.getCurrency());
         if (currency == null) {
-            throw new BizException(ErrorCodeEnum.INVALID_CURRENCY, "不支持的币种: " + req.getCurrency());
+            throw new BizException(ErrorCodeEnum.INVALID_CURRENCY, "Unsupported currency: " + req.getCurrency());
         }
 
         // 3. 校验付款账户
         Account source = accountMapper.selectById(req.getSourceAccountId());
         if (source == null || source.getStatus() != 1) {
-            throw new BizException(ErrorCodeEnum.INVALID_ACCOUNT, "付款账户不存在或已禁用");
+            throw new BizException(ErrorCodeEnum.INVALID_ACCOUNT,
+                    "The source account does not exist or is disabled.");
         }
 
         // 4. 校验收款账户
         Account destination = accountMapper.selectById(req.getDestinationAccountId());
         if (destination == null || destination.getStatus() != 1) {
-            throw new BizException(ErrorCodeEnum.INVALID_ACCOUNT, "收款账户不存在或已禁用");
+            throw new BizException(ErrorCodeEnum.INVALID_ACCOUNT,
+                    "The destination account does not exist or is disabled.");
         }
 
         // 5. 校验余额是否充足
         if (source.getBalance().compareTo(req.getAmount()) < 0) {
             throw new BizException(ErrorCodeEnum.INSUFFICIENT_FUNDS,
-                    "余额不足，当前余额: " + source.getBalance() + "，需要: " + req.getAmount());
+                    "Insufficient balance. Current balance: " + source.getBalance()
+                            + ", required amount: " + req.getAmount());
         }
     }
 }

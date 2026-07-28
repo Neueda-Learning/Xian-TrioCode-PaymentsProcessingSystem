@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.hsbc.triocodebackend.repository.CurrencyDictRepository">
+
+    <select id="getAllCurrency" resultType="org.hsbc.triocodebackend.model.CurrencyDict">
+        SELECT
+            id,
+            code,
+            code_name AS codeName,
+            country_name AS countryName
+        FROM currency_dict
+    </select>
+
+</mapper>
+

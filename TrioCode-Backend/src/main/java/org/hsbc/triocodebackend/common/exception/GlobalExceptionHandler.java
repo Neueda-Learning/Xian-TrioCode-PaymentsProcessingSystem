@@ -4,11 +4,15 @@ import org.hsbc.triocodebackend.common.result.Result;
 import org.hsbc.triocodebackend.common.enums.ErrorCodeEnum;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import jakarta.servlet.http.HttpServletResponse;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+	private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
 	@ExceptionHandler(BizException.class)
 	public Result<Void> handleBizException(BizException ex, HttpServletResponse response) {
@@ -19,6 +23,7 @@ public class GlobalExceptionHandler {
 
 	@ExceptionHandler(Exception.class)
 	public Result<Void> handleUnexpectedException(Exception ex, HttpServletResponse response) {
+		logger.error("系统异常：", ex);
 		response.setStatus(ErrorCodeEnum.PROCESSING_ERROR.getHttpStatus());
 		return Result.fail(ErrorCodeEnum.PROCESSING_ERROR);
 	}

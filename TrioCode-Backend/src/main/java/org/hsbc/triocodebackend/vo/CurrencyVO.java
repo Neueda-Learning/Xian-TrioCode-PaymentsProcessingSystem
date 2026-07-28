@@ -1,4 +1,4 @@
-package org.hsbc.triocodebackend.model;
+package org.hsbc.triocodebackend.vo;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class CurrencyDict {
+public class CurrencyVO {
     private Long id;
     private String code;
     private String codeName;
@@ -17,5 +17,3 @@ public class CurrencyDict {
     private Integer enabled;
     private Integer scale;
 }
-
-

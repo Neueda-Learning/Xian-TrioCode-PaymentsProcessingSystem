@@ -4,13 +4,30 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.hsbc.triocodebackend.repository.CurrencyDictRepository">
 
-    <select id="getAllCurrency" resultType="org.hsbc.triocodebackend.model.CurrencyDict">
-        SELECT
-            id,
-            code,
-            code_name AS codeName,
-            country_name AS countryName
+    <resultMap id="CurrencyResultMap" type="org.hsbc.triocodebackend.model.CurrencyDict">
+        <id     column="id"           property="id"/>
+        <result column="code"         property="code"/>
+        <result column="code_name"    property="codeName"/>
+        <result column="country_name" property="countryName"/>
+        <result column="enabled"      property="enabled"/>
+        <result column="scale"        property="scale"/>
+    </resultMap>
+
+    <select id="getAllCurrency" resultMap="CurrencyResultMap">
+        SELECT id, code, code_name, country_name, enabled, scale
         FROM currency_dict
+    </select>
+
+    <select id="getCurrencies" resultMap="CurrencyResultMap">
+        SELECT id, code, code_name, country_name, enabled, scale
+        FROM currency_dict
+        <if test="enabled == 1">WHERE enabled = 1</if>
+    </select>
+
+    <select id="findEnabledByCode" resultMap="CurrencyResultMap">
+        SELECT id, code, code_name, country_name, enabled, scale
+        FROM currency_dict
+        WHERE code = #{code} AND enabled = 1
     </select>
 
 </mapper>

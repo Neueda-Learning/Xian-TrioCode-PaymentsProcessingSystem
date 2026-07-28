@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.hsbc.triocodebackend.repository.AccountRepository">
+
+    <resultMap id="AccountResultMap" type="org.hsbc.triocodebackend.model.Account">
+        <id     column="id"         property="id"/>
+        <result column="account_no" property="accountNo"/>
+        <result column="name"       property="name"/>
+        <result column="balance"    property="balance"/>
+        <result column="status"     property="status"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="selectById" resultMap="AccountResultMap">
+        SELECT id, account_no, name, balance, status, created_at, updated_at
+        FROM account
+        WHERE id = #{id}
+    </select>
+
+    <update id="deductBalance">
+        UPDATE account
+        SET balance     = balance - #{amount},
+            updated_at  = NOW(3)
+        WHERE id = #{id}
+    </update>
+
+    <update id="addBalance">
+        UPDATE account
+        SET balance     = balance + #{amount},
+            updated_at  = NOW(3)
+        WHERE id = #{id}
+    </update>
+
+</mapper>

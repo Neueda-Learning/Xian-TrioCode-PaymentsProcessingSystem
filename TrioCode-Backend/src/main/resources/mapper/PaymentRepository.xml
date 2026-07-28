@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.hsbc.triocodebackend.repository.PaymentRepository">
+
+    <resultMap id="PaymentResultMap" type="org.hsbc.triocodebackend.model.Payment">
+        <id     column="id"                     property="id"/>
+        <result column="payment_no"             property="paymentNo"/>
+        <result column="source_account_id"      property="sourceAccountId"/>
+        <result column="destination_account_id" property="destinationAccountId"/>
+        <result column="amount"                 property="amount"/>
+        <result column="currency"               property="currency"/>
+        <result column="reference"              property="reference"/>
+        <result column="status"                 property="status"/>
+        <result column="failure_code"           property="failureCode"/>
+        <result column="failure_message"        property="failureMessage"/>
+        <result column="validated_at"           property="validatedAt"/>
+        <result column="sent_at"                property="sentAt"/>
+        <result column="completed_at"           property="completedAt"/>
+        <result column="failed_at"              property="failedAt"/>
+        <result column="version"                property="version"/>
+        <result column="created_at"             property="createdAt"/>
+        <result column="updated_at"             property="updatedAt"/>
+    </resultMap>
+
+    <sql id="selectAllColumns">
+        id, payment_no, source_account_id, destination_account_id,
+        amount, currency, reference, status,
+        failure_code, failure_message,
+        validated_at, sent_at, completed_at, failed_at,
+        version, created_at, updated_at
+    </sql>
+
+    <select id="selectById" resultMap="PaymentResultMap">
+        SELECT <include refid="selectAllColumns"/>
+        FROM payment
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectByPaymentNo" resultMap="PaymentResultMap">
+        SELECT <include refid="selectAllColumns"/>
+        FROM payment
+        WHERE payment_no = #{paymentNo}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO payment
+            (payment_no, source_account_id, destination_account_id, amount, currency,
+             reference, status, version, created_at, updated_at)
+        VALUES
+            (#{paymentNo}, #{sourceAccountId}, #{destinationAccountId}, #{amount}, #{currency},
+             #{reference}, #{status}, 0, NOW(3), NOW(3))
+    </insert>
+
+    <update id="updateToValidated">
+        UPDATE payment
+        SET status       = 'VALIDATED',
+            validated_at = #{validatedAt},
+            version      = version + 1,
+            updated_at   = NOW(3)
+        WHERE id = #{id} AND version = #{version} AND status = 'CREATED'
+    </update>
+
+    <update id="updateToSent">
+        UPDATE payment
+        SET status     = 'SENT',
+            sent_at    = #{sentAt},
+            version    = version + 1,
+            updated_at = NOW(3)
+        WHERE id = #{id} AND version = #{version} AND status = 'VALIDATED'
+    </update>
+
+    <update id="updateToCompleted">
+        UPDATE payment
+        SET status       = 'COMPLETED',
+            completed_at = #{completedAt},
+            version      = version + 1,
+            updated_at   = NOW(3)
+        WHERE id = #{id} AND version = #{version} AND status = 'SENT'
+    </update>
+
+    <update id="updateToFailed">
+        UPDATE payment
+        SET status          = 'FAILED',
+            failed_at       = #{failedAt},
+            failure_code    = #{failureCode},
+            failure_message = #{failureMessage},
+            version         = version + 1,
+            updated_at      = NOW(3)
+        WHERE id = #{id} AND version = #{version} AND status = #{currentStatus}
+    </update>
+
+    <update id="updateToFailedAny">
+        UPDATE payment
+        SET status          = 'FAILED',
+            failed_at       = #{failedAt},
+            failure_code    = #{failureCode},
+            failure_message = #{failureMessage},
+            version         = version + 1,
+            updated_at      = NOW(3)
+        WHERE id = #{id} AND version = #{version}
+          AND status IN ('CREATED', 'VALIDATED', 'SENT')
+    </update>
+
+    <sql id="queryConditions">
+        <where>
+            <if test="query.status != null and query.status != ''">
+                AND status = #{query.status}
+            </if>
+            <if test="query.paymentNo != null and query.paymentNo != ''">
+                AND payment_no LIKE CONCAT('%', #{query.paymentNo}, '%')
+            </if>
+            <if test="query.reference != null and query.reference != ''">
+                AND reference LIKE CONCAT('%', #{query.reference}, '%')
+            </if>
+            <if test="query.currency != null and query.currency != ''">
+                AND currency = #{query.currency}
+            </if>
+            <if test="query.createdFrom != null and query.createdFrom != ''">
+                AND created_at >= #{query.createdFrom}
+            </if>
+            <if test="query.createdTo != null and query.createdTo != ''">
+                AND created_at &lt;= #{query.createdTo}
+            </if>
+        </where>
+    </sql>
+
+    <select id="countByQuery" resultType="long">
+        SELECT COUNT(*)
+        FROM payment
+        <include refid="queryConditions"/>
+    </select>
+
+    <select id="selectByQuery" resultMap="PaymentResultMap">
+        SELECT <include refid="selectAllColumns"/>
+        FROM payment
+        <include refid="queryConditions"/>
+        ORDER BY created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+</mapper>

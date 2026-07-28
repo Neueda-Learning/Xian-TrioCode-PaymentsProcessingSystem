@@ -9,7 +9,7 @@ import lombok.RequiredArgsConstructor;
  * <p>Each constant carries:
  * <ul>
  *   <li>{@code code}        – the machine-readable business code returned in {@code Result.code}</li>
- *   <li>{@code message}     – a human-readable default description</li>
+ *   <li>{@code message}     – a Git-readable default description</li>
  *   <li>{@code httpStatus}  – the HTTP status code to use in the global exception handler</li>
  *   <li>{@code retryable}   – whether the client/system may safely retry the operation</li>
  * </ul>

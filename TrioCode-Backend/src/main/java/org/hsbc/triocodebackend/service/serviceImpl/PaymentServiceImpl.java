@@ -16,6 +16,7 @@ import org.hsbc.triocodebackend.model.Payment;
 import org.hsbc.triocodebackend.model.PaymentStatusHistory;
 import org.hsbc.triocodebackend.model.dto.PaymentCreateReqDTO;
 import org.hsbc.triocodebackend.model.vo.PaymentDetailVO;
+import org.hsbc.triocodebackend.model.vo.PaymentHistoryVO;
 import org.hsbc.triocodebackend.service.PaymentRuleChecker;
 import org.hsbc.triocodebackend.service.PaymentService;
 import org.hsbc.triocodebackend.service.PaymentStateMachine;
@@ -26,7 +27,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /**
  * 支付核心业务实现。
@@ -145,6 +148,29 @@ public class PaymentServiceImpl implements PaymentService {
 
         log.info("[Payment] 支付完成, id={}, paymentNo={}", payment.getId(), payment.getPaymentNo());
         return toVO(paymentMapper.selectById(payment.getId()));
+    }
+
+    @Override
+    public List<PaymentHistoryVO> getHistories(Long paymentId) {
+        // 校验支付记录是否存在
+        Payment payment = paymentMapper.selectById(paymentId);
+        if (payment == null) {
+            throw new BizException(ErrorCodeEnum.PAYMENT_NOT_FOUND);
+        }
+
+        return historyMapper.selectByPaymentId(paymentId).stream()
+                .map(this::toHistoryVO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<PaymentHistoryVO> getHistoriesByPaymentNo(String paymentNo) {
+        // 先通过 paymentNo 定位 paymentId，再复用同样的历史查询逻辑
+        Payment payment = paymentMapper.selectByPaymentNo(paymentNo);
+        if (payment == null) {
+            throw new BizException(ErrorCodeEnum.PAYMENT_NOT_FOUND);
+        }
+        return getHistories(payment.getId());
     }
 
     // ----------------------------------------------------------------
@@ -303,6 +329,18 @@ public class PaymentServiceImpl implements PaymentService {
         vo.setFailedAt(p.getFailedAt());
         vo.setCreatedAt(p.getCreatedAt());
         vo.setUpdatedAt(p.getUpdatedAt());
+        return vo;
+    }
+
+    private PaymentHistoryVO toHistoryVO(PaymentStatusHistory h) {
+        PaymentHistoryVO vo = new PaymentHistoryVO();
+        vo.setHistoryId(h.getId());
+        vo.setFromStatus(h.getFromStatus());
+        vo.setToStatus(h.getToStatus());
+        vo.setReference(h.getReference());
+        vo.setErrorCode(h.getErrorCode());
+        vo.setErrorMessage(h.getErrorMessage());
+        vo.setCreatedAt(h.getCreatedAt());
         return vo;
     }
 }

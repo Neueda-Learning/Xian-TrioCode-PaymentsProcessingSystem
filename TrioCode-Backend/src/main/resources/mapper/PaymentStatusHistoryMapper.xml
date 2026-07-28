@@ -8,5 +8,23 @@
         VALUES (#{paymentId}, #{fromStatus}, #{toStatus}, #{reference}, #{errorCode}, #{errorMessage})
     </insert>
 
+    <resultMap id="historyResultMap" type="org.hsbc.triocodebackend.model.PaymentStatusHistory">
+        <id column="id" property="id"/>
+        <result column="payment_id" property="paymentId"/>
+        <result column="from_status" property="fromStatus"/>
+        <result column="to_status" property="toStatus"/>
+        <result column="reference" property="reference"/>
+        <result column="error_code" property="errorCode"/>
+        <result column="error_message" property="errorMessage"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <select id="selectByPaymentId" resultMap="historyResultMap">
+        SELECT id, payment_id, from_status, to_status, reference, error_code, error_message, created_at
+        FROM payment_status_history
+        WHERE payment_id = #{paymentId}
+        ORDER BY created_at ASC
+    </select>
+
 </mapper>
 

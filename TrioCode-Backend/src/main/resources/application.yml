@@ -18,7 +18,7 @@ mybatis:
 logging:
   level:
     root: info
-    org.hsbc.triocodebackend.repository: debug
+    org.hsbc.triocodebackend.mapper: debug
     org.hsbc.triocodebackend.service: info
     org.hsbc.triocodebackend.controller: info
     org.springframework.web: warn

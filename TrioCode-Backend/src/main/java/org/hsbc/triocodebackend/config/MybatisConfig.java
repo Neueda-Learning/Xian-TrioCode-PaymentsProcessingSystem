@@ -11,7 +11,7 @@ import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import javax.sql.DataSource;
 
 @Configuration
-@MapperScan("org.hsbc.triocodebackend.repository")
+@MapperScan("org.hsbc.triocodebackend.mapper")
 public class MybatisConfig {
 
     @Bean

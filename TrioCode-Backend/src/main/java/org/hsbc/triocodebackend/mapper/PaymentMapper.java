@@ -3,6 +3,7 @@ package org.hsbc.triocodebackend.mapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.hsbc.triocodebackend.model.Payment;
+import org.hsbc.triocodebackend.model.vo.PaymentListItemVO;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -31,7 +32,7 @@ public interface PaymentMapper {
                       @Param("createdFrom") LocalDateTime createdFrom,
                       @Param("createdTo") LocalDateTime createdTo);
 
-    List<Payment> selectPageByQuery(@Param("status") String status,
+    List<PaymentListItemVO> selectPageByQuery(@Param("status") String status,
                                     @Param("paymentNo") String paymentNo,
                                     @Param("reference") String reference,
                                     @Param("currency") String currency,

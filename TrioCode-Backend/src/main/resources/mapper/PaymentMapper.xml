@@ -6,22 +6,22 @@
     <sql id="queryConditions">
         <where>
             <if test="status != null and status != ''">
-                AND status = #{status}
+                AND p.status = #{status}
             </if>
             <if test="paymentNo != null and paymentNo != ''">
-                AND payment_no LIKE CONCAT('%', #{paymentNo}, '%')
+                AND p.payment_no LIKE CONCAT('%', #{paymentNo}, '%')
             </if>
             <if test="reference != null and reference != ''">
-                AND reference LIKE CONCAT('%', #{reference}, '%')
+                AND p.reference LIKE CONCAT('%', #{reference}, '%')
             </if>
             <if test="currency != null and currency != ''">
-                AND currency = #{currency}
+                AND p.currency = #{currency}
             </if>
             <if test="createdFrom != null">
-                AND created_at <![CDATA[>=]]> #{createdFrom}
+                AND p.created_at <![CDATA[>=]]> #{createdFrom}
             </if>
             <if test="createdTo != null">
-                AND created_at <![CDATA[<=]]> #{createdTo}
+                AND p.created_at <![CDATA[<=]]> #{createdTo}
             </if>
         </where>
     </sql>
@@ -58,22 +58,26 @@
 
     <select id="countByQuery" resultType="long">
         SELECT COUNT(1)
-        FROM payment
+        FROM payment p
         <include refid="queryConditions"/>
     </select>
 
-    <select id="selectPageByQuery" resultType="Payment">
-        SELECT id,
-               payment_no,
-               source_account_id,
-               destination_account_id,
-               amount,
-               currency,
-               status,
-               created_at
-        FROM payment
+    <select id="selectPageByQuery" resultType="org.hsbc.triocodebackend.model.vo.PaymentListItemVO">
+        SELECT p.id                      AS payment_id,
+               p.payment_no,
+               p.source_account_id,
+               src.name                  AS source_account_name,
+               p.destination_account_id,
+               dst.name                  AS destination_account_name,
+               p.amount,
+               p.currency,
+               p.status,
+               p.created_at
+        FROM payment p
+        LEFT JOIN account src ON src.id = p.source_account_id
+        LEFT JOIN account dst ON dst.id = p.destination_account_id
         <include refid="queryConditions"/>
-        ORDER BY created_at DESC, id DESC
+        ORDER BY p.created_at DESC, p.id DESC
         LIMIT #{limit} OFFSET #{offset}
     </select>
 

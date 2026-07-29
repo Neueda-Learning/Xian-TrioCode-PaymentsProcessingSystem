@@ -172,7 +172,7 @@ onMounted(() => {
           :step="0.01"
           :controls="false"
           class="full-width-input"
-          placeholder="Enter an amount (up to 2 decimal places)"
+          placeholder="Enter an amount"
         />
       </el-form-item>
       <el-form-item label="Currency" prop="currency">

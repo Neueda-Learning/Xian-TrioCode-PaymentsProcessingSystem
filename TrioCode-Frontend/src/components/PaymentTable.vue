@@ -7,7 +7,7 @@ import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { usePaymentStore } from '@/store/payment'
 import { getPaymentList } from '@/api/payment'
-import { formatAmount, statusTagType, statusLabel } from '@/utils/format'
+import { formatAmount, formatDateTime, statusTagType, statusLabel } from '@/utils/format'
 import { normalizePaymentErrorMessage } from '@/utils/paymentError'
 
 const emit = defineEmits(['row-click'])
@@ -130,7 +130,7 @@ defineExpose({ reload: fetchList })
           <el-option
             v-for="item in store.currencyOptions"
             :key="item.code"
-            :label="item.code"
+            :label="item.codeName ? `${item.code} - ${item.codeName}` : item.code"
             :value="item.code"
           />
         </el-select>
@@ -173,13 +173,13 @@ defineExpose({ reload: fetchList })
       <template #empty>
         <el-empty description="No payment data available" />
       </template>
-      <el-table-column prop="paymentNo" label="Order No." min-width="160" />
-      <el-table-column prop="sourceAccountId" label="Source Account ID" min-width="120" />
-      <el-table-column prop="destinationAccountId" label="Destination Account ID" min-width="120" />
-      <el-table-column prop="amount" label="Amount" min-width="150" sortable>
+      <el-table-column prop="paymentNo" label="Order No." min-width="160" align="center" header-align="center" />
+      <el-table-column prop="sourceAccountId" label="Source Account ID" min-width="160" align="center" header-align="center" />
+      <el-table-column prop="destinationAccountId" label="Destination Account ID" min-width="180" align="center" header-align="center" />
+      <el-table-column prop="amount" label="Amount" min-width="150" sortable align="center" header-align="center">
         <template #default="{ row }">{{ formatAmount(row.amount, row.currency) }}</template>
       </el-table-column>
-      <el-table-column prop="status" label="Status" min-width="100">
+      <el-table-column prop="status" label="Status" min-width="100" align="center" header-align="center">
         <template #default="{ row }">
           <el-tag
             :type="statusTagType(row.status)"
@@ -191,7 +191,9 @@ defineExpose({ reload: fetchList })
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="createdAt" label="Created At" min-width="180" sortable />
+      <el-table-column prop="createdAt" label="Created At" min-width="180" sortable align="center" header-align="center">
+        <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+      </el-table-column>
     </el-table>
 
     <!-- Pagination section -->

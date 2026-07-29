@@ -165,7 +165,7 @@ onMounted(() => {
           <el-option
             v-for="item in store.currencyOptions"
             :key="item.code"
-            :label="item.code"
+            :label="item.codeName ? `${item.code} - ${item.codeName}` : item.code"
             :value="item.code"
           />
         </el-select>
@@ -238,6 +238,10 @@ onMounted(() => {
 }
 .payment-form :deep(.el-textarea__inner) {
   min-height: 92px;
+}
+/* Element Plus centers el-input-number text by default; align it left with other inputs. */
+.payment-form :deep(.el-input-number .el-input__inner) {
+  text-align: left;
 }
 .dialog-footer-actions {
   display: flex;

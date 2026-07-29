@@ -4,6 +4,7 @@
  */
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import logoUrl from '@/assets/logo.svg'
 import PaymentTable from '@/components/PaymentTable.vue'
 import PaymentCreateDialog from '@/components/PaymentCreateDialog.vue'
 import PaymentTimelineDialog from '@/components/PaymentTimelineDialog.vue'
@@ -57,7 +58,10 @@ function handleCreateSuccess(detail) {
   <div class="payment-view">
     <section class="page-hero">
       <div class="page-heading">
-        <p class="eyebrow">Payment Console</p>
+        <div class="brand-row">
+          <img :src="logoUrl" alt="TrioCode Payment" class="brand-logo" />
+          <p class="eyebrow">TrioCode Payment</p>
+        </div>
         <h2 class="title">Payment Management</h2>
         <p class="subtitle">Search orders, create payments, and review the full timeline.</p>
       </div>
@@ -111,6 +115,16 @@ function handleCreateSuccess(detail) {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.brand-logo {
+  width: 24px;
+  height: 24px;
+  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.45));
 }
 .eyebrow {
   margin: 0;

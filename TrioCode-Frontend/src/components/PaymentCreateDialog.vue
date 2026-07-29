@@ -16,8 +16,26 @@ const emit = defineEmits(['update:modelValue', 'success'])
 const store = usePaymentStore()
 const formRef = ref(null)
 const submitting = ref(false)
+let lastTimestamp = 0
+let sequence = 0
+
+function nextSequence(nowTimestamp) {
+  if (nowTimestamp === lastTimestamp) {
+    sequence += 1
+  } else {
+    lastTimestamp = nowTimestamp
+    sequence = 0
+  }
+  return String(sequence).padStart(4, '0')
+}
+
+function generatePaymentNo() {
+  const nowTimestamp = Date.now()
+  const sequencePart = nextSequence(nowTimestamp)
+  return `PAY${nowTimestamp}${sequencePart}`
+}
 const defaultForm = () => ({
-  paymentNo: '',
+  paymentNo: generatePaymentNo(),
   sourceAccountId: undefined,
   destinationAccountId: undefined,
   amount: undefined,
@@ -136,16 +154,13 @@ onMounted(() => {
   >
     <div class="dialog-intro">
       <div class="dialog-intro-title">Create a new payment request</div>
-      <div class="dialog-intro-subtitle">Fill in the order and account details. The result and timeline will appear automatically.</div>
+      <div class="dialog-intro-subtitle">The order number is auto-generated. Fill in account details to submit the payment.</div>
     </div>
-    <el-form ref="formRef" :model="form" :rules="rules" label-width="110px" class="payment-form">
-      <el-form-item label="Order No." prop="paymentNo">
-        <el-input v-model="form.paymentNo" placeholder="Enter the order number (max 32 characters)" maxlength="32" />
-      </el-form-item>
-      <el-form-item label="Source Account ID" prop="sourceAccountId">
+    <el-form ref="formRef" :model="form" :rules="rules" label-width="130px" class="payment-form">
+      <el-form-item label="Source ID" prop="sourceAccountId">
         <el-input-number v-model="form.sourceAccountId" :min="1" :controls="false" class="full-width-input" placeholder="Enter the source account ID" />
       </el-form-item>
-      <el-form-item label="Destination Account ID" prop="destinationAccountId">
+      <el-form-item label="Destination ID" prop="destinationAccountId">
         <el-input-number v-model="form.destinationAccountId" :min="1" :controls="false" class="full-width-input" placeholder="Enter the destination account ID" />
       </el-form-item>
       <el-form-item label="Amount" prop="amount">
@@ -221,11 +236,12 @@ onMounted(() => {
   font-size: 13px;
 }
 .payment-form :deep(.el-form-item) {
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 .payment-form :deep(.el-form-item__label) {
   font-weight: 600;
   color: var(--el-text-color-primary);
+  white-space: nowrap;
 }
 .full-width-input {
   width: 100%;

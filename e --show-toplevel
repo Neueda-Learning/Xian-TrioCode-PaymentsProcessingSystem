@@ -1,0 +1,20 @@
+* [33m4bd355e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/Pagnition[m[33m, [m[1;31morigin/feature/Pagnition[m[33m)[m Modify the Frontend view v1 to v2
+*   [33m8c8fe16[m Merge pull request #7 from Neueda-Learning/feature/frontend_v1
+[32m|[m[33m\[m  
+[32m|[m * [33med2d358[m Add front-end interface
+[32m|[m[32m/[m  
+*   [33mee390d6[m Merge pull request #6 from Neueda-Learning/feature/Pagnition
+[34m|[m[35m\[m  
+[34m|[m * [33m5d957aa[m add Pagnition
+[34m|[m[34m/[m  
+*   [33me32493d[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/everett_zhi[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m Merge pull request #5 from Neueda-Learning/feature/payment_history
+[36m|[m[1;31m\[m  
+[36m|[m * [33m8c9cf4b[m[33m ([m[1;31morigin/feature/payment_history[m[33m)[m The function to query the complete timeline of payment procesing
+[36m|[m[36m/[m  
+*   [33mcf22a52[m Merge pull request #4 from Neueda-Learning/feature/payment
+[1;32m|[m[1;33m\[m  
+[1;32m|[m * [33m8b697bb[m[33m ([m[1;31morigin/feature/payment[m[33m)[m Payment Function
+* [1;33m|[m   [33m385134b[m Merge pull request #3 from Neueda-Learning/feature/framework
+[1;33m|[m[1;35m\[m [1;33m\[m  
+[1;33m|[m [1;35m|[m[1;33m/[m  
+[1;33m|[m[1;33m/[m[1;35m|[m   

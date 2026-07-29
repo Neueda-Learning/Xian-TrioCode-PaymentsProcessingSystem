@@ -40,6 +40,7 @@ public enum ErrorCodeEnum {
     // 5xx – Server / infrastructure errors
     // ----------------------------------------------------------------
     PROCESSING_ERROR("PROCESSING_ERROR", "Payment processing error.", 500, true),
+    CLEARING_SYSTEM_UNAVAILABLE("CLEARING_SYSTEM_UNAVAILABLE", "The clearing system is temporarily unavailable.", 503, true),
     NETWORK_ERROR("NETWORK_ERROR", "Network communication failed. Please try again later.", 503, true);
 
     // ----------------------------------------------------------------

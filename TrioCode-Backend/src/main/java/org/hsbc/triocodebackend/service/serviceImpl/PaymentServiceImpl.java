@@ -116,11 +116,9 @@ public class PaymentServiceImpl implements PaymentService {
                 p -> p.setValidatedAt(LocalDateTime.now()), "Validation passed");
 
         // ④ 模拟发送（含重试）→ SENT 或 FAILED
-        boolean sendOk = false;
-        for (int attempt = 1; attempt <= MAX_SEND_RETRIES; attempt++) {
+        for (int attempt = 1; ; attempt++) {
             try {
                 simulateSend();
-                sendOk = true;
                 break;
             } catch (BizException e) {
                 log.warn("[Payment] Send attempt {}/{} failed, id={}, reason={}",
@@ -132,10 +130,8 @@ public class PaymentServiceImpl implements PaymentService {
                 }
             }
         }
-        if (sendOk) {
-            transitionTo(payment, PaymentStatusEnum.VALIDATED.name(), PaymentStatusEnum.SENT.name(),
-                    p -> p.setSentAt(LocalDateTime.now()), "Payment sent");
-        }
+        transitionTo(payment, PaymentStatusEnum.VALIDATED.name(), PaymentStatusEnum.SENT.name(),
+                p -> p.setSentAt(LocalDateTime.now()), "Payment sent");
 
         // ⑤ 模拟清算 → COMPLETED 或 FAILED
         try {
@@ -348,7 +344,7 @@ public class PaymentServiceImpl implements PaymentService {
         } catch (InterruptedException e) {
             throw new BizException(ErrorCodeEnum.PROCESSING_ERROR, "complete simulation interrupted.");
         }
-        if (RANDOM.nextInt(20) < 5) throw new BizException(ErrorCodeEnum.PROCESSING_ERROR, "The clearing system is temporarily unavailable.");
+        if (RANDOM.nextInt(20) < 5) throw new BizException(ErrorCodeEnum.CLEARING_SYSTEM_UNAVAILABLE, "The clearing system is temporarily unavailable.");
     }
 
     // ----------------------------------------------------------------

@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import { normalizePaymentErrorMessage, normalizePaymentPayload } from './paymentError'
 
 /**
  * Axios instance pre-configured for the TrioCode backend.
@@ -16,10 +17,17 @@ request.interceptors.request.use(
 )
 
 request.interceptors.response.use(
-  (response) => response.data,
+  (response) => normalizePaymentPayload(response.data),
   (error) => {
-    const message = error?.response?.data?.message || error.message || 'Request failed'
-    ElMessage.error(message)
+    const responseData = normalizePaymentPayload(error?.response?.data || {})
+    const requestUrl = error?.config?.url || ''
+    const isPaymentNoHistoryLookup = /^\/v1\/payments\/no\/[^/]+\/histories$/.test(requestUrl)
+    const message = normalizePaymentErrorMessage(responseData.message || error.message, responseData.code)
+    error.normalizedMessage = message
+    error.response = error.response ? { ...error.response, data: responseData } : error.response
+    if (!isPaymentNoHistoryLookup) {
+      ElMessage.error(message)
+    }
     return Promise.reject(error)
   },
 )

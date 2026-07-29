@@ -94,7 +94,7 @@ watch(
         :type="item.toStatus === 'FAILED' ? 'danger' : 'primary'"
       >
         <div class="timeline-title">
-          {{ item.fromStatus ? statusLabel(item.fromStatus) : 'Created' }} -> {{ statusLabel(item.toStatus) }}
+          {{ item.fromStatus ? statusLabel(item.fromStatus) : 'Create' }} -> {{ statusLabel(item.toStatus) }}
         </div>
         <div v-if="item.reference" class="timeline-reference">Reference: {{ historyReferenceLabel(item.reference) }}</div>
         <div v-if="item.toStatus === 'FAILED'" class="timeline-error">

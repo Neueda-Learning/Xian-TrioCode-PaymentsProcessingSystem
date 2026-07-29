@@ -19,6 +19,26 @@ export function formatAmount(amount, currency) {
 }
 
 /**
+ * Format an ISO datetime string as "YYYY-MM-DD HH:mm:ss" for display.
+ * @param {string} value
+ * @returns {string}
+ */
+export function formatDateTime(value) {
+  if (!value) return '-'
+  const normalized = String(value).replace(' ', 'T')
+  const date = new Date(normalized)
+  if (Number.isNaN(date.getTime())) return value
+  const pad = (n) => String(n).padStart(2, '0')
+  const year = date.getFullYear()
+  const month = pad(date.getMonth() + 1)
+  const day = pad(date.getDate())
+  const hours = pad(date.getHours())
+  const minutes = pad(date.getMinutes())
+  const seconds = pad(date.getSeconds())
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+}
+
+/**
  * Payment status -> el-tag type mapping
  */
 export const STATUS_TAG_TYPE = {

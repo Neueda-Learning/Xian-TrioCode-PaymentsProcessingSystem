@@ -1,6 +1,5 @@
 package org.hsbc.triocodebackend.service;
 
-import lombok.RequiredArgsConstructor;
 import org.hsbc.triocodebackend.common.constants.Constants;
 import org.hsbc.triocodebackend.common.enums.ErrorCodeEnum;
 import org.hsbc.triocodebackend.common.exception.BizException;
@@ -17,11 +16,15 @@ import java.math.BigDecimal;
  * 支付业务规则校验器：账户/币种/余额校验，可被多个 Service 复用。
  */
 @Component
-@RequiredArgsConstructor
 public class PaymentRuleChecker {
 
     private final AccountMapper accountMapper;
     private final CurrencyDictMapper currencyDictMapper;
+
+    public PaymentRuleChecker(AccountMapper accountMapper, CurrencyDictMapper currencyDictMapper) {
+        this.accountMapper = accountMapper;
+        this.currencyDictMapper = currencyDictMapper;
+    }
 
     /**
      * 执行全部业务规则校验，校验失败则抛出对应 BizException。

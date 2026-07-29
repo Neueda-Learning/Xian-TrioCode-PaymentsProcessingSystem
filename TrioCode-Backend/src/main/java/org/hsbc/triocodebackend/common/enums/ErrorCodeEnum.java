@@ -34,6 +34,7 @@ public enum ErrorCodeEnum {
     INVALID_STATUS_TRANSITION("INVALID_STATUS_TRANSITION", "Invalid payment status transition.", 400, false),
     DUPLICATE_PAYMENT("DUPLICATE_PAYMENT", "Order number already exists. Please do not submit twice.", 409, false),
     PAYMENT_NOT_FOUND("PAYMENT_NOT_FOUND", "Payment record not found.", 404, false),
+    ACCOUNT_NOT_FOUND("ACCOUNT_NOT_FOUND", "Account not found.", 404, false),
 
     // ----------------------------------------------------------------
     // 5xx – Server / infrastructure errors

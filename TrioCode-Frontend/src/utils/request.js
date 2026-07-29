@@ -22,10 +22,11 @@ request.interceptors.response.use(
     const responseData = normalizePaymentPayload(error?.response?.data || {})
     const requestUrl = error?.config?.url || ''
     const isPaymentNoHistoryLookup = /^\/v1\/payments\/no\/[^/]+\/histories$/.test(requestUrl)
+    const isAccountLookup = /^\/v1\/accounts\/[^/]+$/.test(requestUrl)
     const message = normalizePaymentErrorMessage(responseData.message || error.message, responseData.code)
     error.normalizedMessage = message
     error.response = error.response ? { ...error.response, data: responseData } : error.response
-    if (!isPaymentNoHistoryLookup) {
+    if (!isPaymentNoHistoryLookup && !isAccountLookup) {
       ElMessage.error(message)
     }
     return Promise.reject(error)

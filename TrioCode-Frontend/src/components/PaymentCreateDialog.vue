@@ -4,9 +4,10 @@
  * Submits the synchronous flow POST /api/v1/payments,
  * shows the final status (COMPLETED / FAILED), and notifies the parent to open the timeline.
  */
-import { ref, reactive, watch, onMounted } from 'vue'
+import { ref, reactive, watch, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
 import { createPayment } from '@/api/payment'
+import { getAccountById } from '@/api/account'
 import { usePaymentStore } from '@/store/payment'
 import { normalizePaymentErrorMessage } from '@/utils/paymentError'
 const props = defineProps({
@@ -120,6 +121,8 @@ function resetForm() {
   Object.assign(form, defaultForm())
   formRef.value?.clearValidate()
   filteredCurrencyOptions.value = store.currencyOptions
+  resetAccountLookup(accountLookup.source)
+  resetAccountLookup(accountLookup.destination)
 }
 watch(
   () => props.modelValue,
@@ -183,6 +186,89 @@ function filterCurrencyOption(query) {
     return text.includes(keyword)
   })
 }
+
+// ----------------------------------------------------------------
+// Account name lookup: resolve and display the account name (or a
+// "not found" hint) as the user types a Source/Destination Account ID.
+// ----------------------------------------------------------------
+function createAccountLookupState() {
+  return { loading: false, name: '', notFound: false, requestId: 0 }
+}
+const accountLookup = reactive({
+  source: createAccountLookupState(),
+  destination: createAccountLookupState(),
+})
+
+function resetAccountLookup(state) {
+  state.loading = false
+  state.name = ''
+  state.notFound = false
+}
+
+async function lookupAccount(state, accountId) {
+  if (!accountId) {
+    resetAccountLookup(state)
+    return
+  }
+  const requestId = ++state.requestId
+  state.loading = true
+  state.notFound = false
+  try {
+    const res = await getAccountById(accountId)
+    if (requestId !== state.requestId) return // A newer lookup has since started; discard this stale result.
+    if (res.code === 'SUCCESS' && res.data) {
+      state.name = res.data.name || ''
+      state.notFound = false
+    } else {
+      state.name = ''
+      state.notFound = true
+    }
+  } catch (error) {
+    if (requestId !== state.requestId) return
+    state.name = ''
+    state.notFound = true
+  } finally {
+    if (requestId === state.requestId) {
+      state.loading = false
+    }
+  }
+}
+
+/**
+ * Debounce helper so we don't fire a request on every keystroke.
+ */
+function debounce(fn, delay) {
+  let timer = null
+  const debounced = (...args) => {
+    clearTimeout(timer)
+    timer = setTimeout(() => fn(...args), delay)
+  }
+  debounced.cancel = () => clearTimeout(timer)
+  return debounced
+}
+
+const debouncedLookupSource = debounce((id) => lookupAccount(accountLookup.source, id), 400)
+const debouncedLookupDestination = debounce((id) => lookupAccount(accountLookup.destination, id), 400)
+
+watch(
+  () => form.sourceAccountId,
+  (id) => {
+    resetAccountLookup(accountLookup.source)
+    debouncedLookupSource(id)
+  },
+)
+watch(
+  () => form.destinationAccountId,
+  (id) => {
+    resetAccountLookup(accountLookup.destination)
+    debouncedLookupDestination(id)
+  },
+)
+
+onBeforeUnmount(() => {
+  debouncedLookupSource.cancel()
+  debouncedLookupDestination.cancel()
+})
 </script>
 <template>
   <el-dialog
@@ -200,9 +286,15 @@ function filterCurrencyOption(query) {
     <el-form ref="formRef" :model="form" :rules="rules" label-width="130px" class="payment-form">
       <el-form-item label="Source ID" prop="sourceAccountId">
         <el-input-number v-model="form.sourceAccountId" :min="1" :controls="false" class="full-width-input" placeholder="Enter the source account ID" />
+        <div v-if="accountLookup.source.loading" class="account-hint account-hint--loading">Looking up account…</div>
+        <div v-else-if="accountLookup.source.notFound" class="account-hint account-hint--error">Account not found</div>
+        <div v-else-if="accountLookup.source.name" class="account-hint account-hint--success">{{ accountLookup.source.name }}</div>
       </el-form-item>
       <el-form-item label="Destination ID" prop="destinationAccountId">
         <el-input-number v-model="form.destinationAccountId" :min="1" :controls="false" class="full-width-input" placeholder="Enter the destination account ID" />
+        <div v-if="accountLookup.destination.loading" class="account-hint account-hint--loading">Looking up account…</div>
+        <div v-else-if="accountLookup.destination.notFound" class="account-hint account-hint--error">Account not found</div>
+        <div v-else-if="accountLookup.destination.name" class="account-hint account-hint--success">{{ accountLookup.destination.name }}</div>
       </el-form-item>
       <el-form-item label="Amount" prop="amount">
         <el-input-number
@@ -305,6 +397,22 @@ function filterCurrencyOption(query) {
 /* Element Plus centers el-input-number text by default; align it left with other inputs. */
 .payment-form :deep(.el-input-number .el-input__inner) {
   text-align: left;
+}
+.account-hint {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.account-hint--loading {
+  color: var(--el-text-color-secondary);
+}
+.account-hint--success {
+  color: var(--el-color-success);
+  font-weight: 600;
+}
+.account-hint--error {
+  color: var(--el-color-danger);
+  font-weight: 600;
 }
 .dialog-footer-actions {
   display: flex;

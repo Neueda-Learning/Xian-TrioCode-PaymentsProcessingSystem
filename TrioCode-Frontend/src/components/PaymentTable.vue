@@ -3,7 +3,7 @@
  * Payment list component: filter form + table + pagination.
  * Clicking a row (outside buttons) triggers row-click, and the parent opens the timeline dialog.
  */
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { usePaymentStore } from '@/store/payment'
 import { getPaymentList } from '@/api/payment'
@@ -27,6 +27,50 @@ const statusOptions = [
 ]
 
 const pageSizeOptions = [10, 20, 50, 100]
+
+// Column header filters (funnel icon) act on the currently loaded page only.
+const statusFilters = statusOptions.map((item) => ({ text: item.label, value: item.value }))
+
+const amountRangeFilters = [
+  { text: 'Under 100', value: '0-100' },
+  { text: '100 - 1,000', value: '100-1000' },
+  { text: '1,000 - 10,000', value: '1000-10000' },
+  { text: '10,000 and above', value: '10000-'},
+]
+
+function uniqueAccountFilters(idKey, nameKey) {
+  const seen = new Map()
+  for (const row of tableData.value) {
+    const id = row[idKey]
+    if (id === undefined || id === null || seen.has(id)) continue
+    seen.set(id, { text: row[nameKey] ? `${row[nameKey]} (ID: ${id})` : `ID: ${id}`, value: id })
+  }
+  return Array.from(seen.values())
+}
+
+const sourceAccountFilters = computed(() => uniqueAccountFilters('sourceAccountId', 'sourceAccountName'))
+const destinationAccountFilters = computed(() => uniqueAccountFilters('destinationAccountId', 'destinationAccountName'))
+
+function filterStatusColumn(value, row) {
+  return row.status === value
+}
+
+function filterSourceAccount(value, row) {
+  return row.sourceAccountId === value
+}
+
+function filterDestinationAccount(value, row) {
+  return row.destinationAccountId === value
+}
+
+function filterAmountRange(value, row) {
+  const amount = Number(row.amount)
+  if (Number.isNaN(amount)) return false
+  const [minStr, maxStr] = value.split('-')
+  const min = minStr === '' ? -Infinity : Number(minStr)
+  const max = maxStr === '' ? Infinity : Number(maxStr)
+  return amount >= min && amount < max
+}
 
 function filterStatusOption(query, option) {
   const text = `${option?.label ?? ''} ${option?.value ?? ''}`.toLowerCase()
@@ -174,7 +218,16 @@ defineExpose({ reload: fetchList })
         <el-empty description="No payment data available" />
       </template>
       <el-table-column prop="paymentNo" label="Order No." min-width="160" align="center" header-align="center" />
-      <el-table-column prop="sourceAccountId" label="Source Account" min-width="180" align="center" header-align="center">
+      <el-table-column
+        prop="sourceAccountId"
+        label="Source Account"
+        min-width="180"
+        align="center"
+        header-align="center"
+        column-key="sourceAccountId"
+        :filters="sourceAccountFilters"
+        :filter-method="filterSourceAccount"
+      >
         <template #default="{ row }">
           <div class="account-cell">
             <span class="account-name">{{ row.sourceAccountName || '-' }}</span>
@@ -182,7 +235,16 @@ defineExpose({ reload: fetchList })
           </div>
         </template>
       </el-table-column>
-      <el-table-column prop="destinationAccountId" label="Destination Account" min-width="180" align="center" header-align="center">
+      <el-table-column
+        prop="destinationAccountId"
+        label="Destination Account"
+        min-width="180"
+        align="center"
+        header-align="center"
+        column-key="destinationAccountId"
+        :filters="destinationAccountFilters"
+        :filter-method="filterDestinationAccount"
+      >
         <template #default="{ row }">
           <div class="account-cell">
             <span class="account-name">{{ row.destinationAccountName || '-' }}</span>
@@ -190,10 +252,28 @@ defineExpose({ reload: fetchList })
           </div>
         </template>
       </el-table-column>
-      <el-table-column prop="amount" label="Amount" min-width="150" sortable align="center" header-align="center">
+      <el-table-column
+        prop="amount"
+        label="Amount"
+        min-width="150"
+        align="center"
+        header-align="center"
+        column-key="amount"
+        :filters="amountRangeFilters"
+        :filter-method="filterAmountRange"
+      >
         <template #default="{ row }">{{ formatAmount(row.amount, row.currency) }}</template>
       </el-table-column>
-      <el-table-column prop="status" label="Status" min-width="100" align="center" header-align="center">
+      <el-table-column
+        prop="status"
+        label="Status"
+        min-width="100"
+        align="center"
+        header-align="center"
+        column-key="status"
+        :filters="statusFilters"
+        :filter-method="filterStatusColumn"
+      >
         <template #default="{ row }">
           <el-tag
             :type="statusTagType(row.status)"

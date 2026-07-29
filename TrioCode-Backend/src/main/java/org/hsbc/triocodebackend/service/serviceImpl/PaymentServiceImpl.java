@@ -329,6 +329,11 @@ public class PaymentServiceImpl implements PaymentService {
      *   if (RANDOM.nextInt(10) == 0) throw new BizException(ErrorCodeEnum.NETWORK_ERROR);
      */
     private void simulateSend() {
+        try {
+            Thread.sleep(3000);
+        } catch (InterruptedException e) {
+            throw new BizException(ErrorCodeEnum.PROCESSING_ERROR, "Send simulation interrupted.");
+        }
         if (RANDOM.nextInt(10) < 3) throw new BizException(ErrorCodeEnum.NETWORK_ERROR);
     }
 
@@ -338,6 +343,11 @@ public class PaymentServiceImpl implements PaymentService {
      *   if (RANDOM.nextInt(20) == 0) throw new BizException(ErrorCodeEnum.PROCESSING_ERROR, "The clearing system is temporarily unavailable.");
      */
     private void simulateComplete() {
+        try {
+            Thread.sleep(3000);
+        } catch (InterruptedException e) {
+            throw new BizException(ErrorCodeEnum.PROCESSING_ERROR, "complete simulation interrupted.");
+        }
         if (RANDOM.nextInt(20) < 5) throw new BizException(ErrorCodeEnum.PROCESSING_ERROR, "The clearing system is temporarily unavailable.");
     }
 

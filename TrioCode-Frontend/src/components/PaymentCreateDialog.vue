@@ -16,23 +16,42 @@ const emit = defineEmits(['update:modelValue', 'success'])
 const store = usePaymentStore()
 const formRef = ref(null)
 const submitting = ref(false)
-let lastTimestamp = 0
+let lastTimestampKey = ''
 let sequence = 0
 
-function nextSequence(nowTimestamp) {
-  if (nowTimestamp === lastTimestamp) {
-    sequence += 1
-  } else {
-    lastTimestamp = nowTimestamp
-    sequence = 0
-  }
-  return String(sequence).padStart(4, '0')
+function pad(num, len = 2) {
+  return String(num).padStart(len, '0')
 }
 
+/**
+ * Format the current local time as yyyyMMddHHmmss.
+ */
+function formatTimestampKey(date) {
+  return (
+    `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}` +
+    `${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`
+  )
+}
+
+function nextSequence(timestampKey) {
+  if (timestampKey === lastTimestampKey) {
+    sequence += 1
+  } else {
+    lastTimestampKey = timestampKey
+    sequence = 0
+  }
+  return sequence
+}
+
+/**
+ * Generate the order number as PAY + yyyyMMddHHmmss.
+ * If multiple payments are created within the same second, a short sequence
+ * suffix is appended to keep the order number unique (paymentNo is the idempotency key).
+ */
 function generatePaymentNo() {
-  const nowTimestamp = Date.now()
-  const sequencePart = nextSequence(nowTimestamp)
-  return `PAY${nowTimestamp}${sequencePart}`
+  const timestampKey = formatTimestampKey(new Date())
+  const sequenceValue = nextSequence(timestampKey)
+  return sequenceValue === 0 ? `PAY${timestampKey}` : `PAY${timestampKey}${pad(sequenceValue, 2)}`
 }
 const defaultForm = () => ({
   paymentNo: generatePaymentNo(),
@@ -100,6 +119,7 @@ function close() {
 function resetForm() {
   Object.assign(form, defaultForm())
   formRef.value?.clearValidate()
+  filteredCurrencyOptions.value = store.currencyOptions
 }
 watch(
   () => props.modelValue,
@@ -142,6 +162,27 @@ async function handleSubmit() {
 onMounted(() => {
   store.loadCurrencyOptions()
 })
+
+// Currency select: type-to-match against both the code and the currency name.
+const filteredCurrencyOptions = ref([])
+watch(
+  () => store.currencyOptions,
+  (list) => {
+    filteredCurrencyOptions.value = list
+  },
+  { immediate: true },
+)
+function filterCurrencyOption(query) {
+  const keyword = query.trim().toLowerCase()
+  if (!keyword) {
+    filteredCurrencyOptions.value = store.currencyOptions
+    return
+  }
+  filteredCurrencyOptions.value = store.currencyOptions.filter((item) => {
+    const text = `${item.code} ${item.codeName || ''}`.toLowerCase()
+    return text.includes(keyword)
+  })
+}
 </script>
 <template>
   <el-dialog
@@ -176,9 +217,15 @@ onMounted(() => {
         />
       </el-form-item>
       <el-form-item label="Currency" prop="currency">
-        <el-select v-model="form.currency" class="full-width-input" placeholder="Select a currency">
+        <el-select
+          v-model="form.currency"
+          class="full-width-input"
+          placeholder="Type or select a currency"
+          filterable
+          :filter-method="filterCurrencyOption"
+        >
           <el-option
-            v-for="item in store.currencyOptions"
+            v-for="item in filteredCurrencyOptions"
             :key="item.code"
             :label="item.codeName ? `${item.code} - ${item.codeName}` : item.code"
             :value="item.code"

@@ -3,7 +3,7 @@
  * Payment list component: filter form + table + pagination.
  * Clicking a row (outside buttons) triggers row-click, and the parent opens the timeline dialog.
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { usePaymentStore } from '@/store/payment'
 import { getPaymentList } from '@/api/payment'
@@ -72,9 +72,25 @@ function filterAmountRange(value, row) {
   return amount >= min && amount < max
 }
 
-function filterStatusOption(query, option) {
-  const text = `${option?.label ?? ''} ${option?.value ?? ''}`.toLowerCase()
-  return text.includes(query.trim().toLowerCase())
+// Currency select: type-to-match against both the code and the currency name.
+const filteredCurrencyOptions = ref([])
+watch(
+  () => store.currencyOptions,
+  (list) => {
+    filteredCurrencyOptions.value = list
+  },
+  { immediate: true },
+)
+function filterCurrencyOption(query) {
+  const keyword = query.trim().toLowerCase()
+  if (!keyword) {
+    filteredCurrencyOptions.value = store.currencyOptions
+    return
+  }
+  filteredCurrencyOptions.value = store.currencyOptions.filter((item) => {
+    const text = `${item.code} ${item.codeName || ''}`.toLowerCase()
+    return text.includes(keyword)
+  })
 }
 
 /**
@@ -160,19 +176,23 @@ defineExpose({ reload: fetchList })
         <el-select
           v-model="store.filters.status"
           class="filter-select"
-          placeholder="Type or select a status"
+          placeholder="Select a status"
           clearable
-          filterable
-          default-first-option
-          :filter-method="filterStatusOption"
         >
           <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
         </el-select>
       </el-form-item>
       <el-form-item label="Currency">
-        <el-select v-model="store.filters.currency" class="filter-select" placeholder="All currencies" clearable>
+        <el-select
+          v-model="store.filters.currency"
+          class="filter-select"
+          placeholder="Type or select a currency"
+          clearable
+          filterable
+          :filter-method="filterCurrencyOption"
+        >
           <el-option
-            v-for="item in store.currencyOptions"
+            v-for="item in filteredCurrencyOptions"
             :key="item.code"
             :label="item.codeName ? `${item.code} - ${item.codeName}` : item.code"
             :value="item.code"

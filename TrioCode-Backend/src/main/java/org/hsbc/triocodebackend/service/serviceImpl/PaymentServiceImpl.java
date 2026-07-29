@@ -32,6 +32,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
+import java.util.Random;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -62,6 +63,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentStateMachine stateMachine;
 
     private static final int MAX_SEND_RETRIES = Constants.Payment.MAX_SEND_RETRIES;
+    private static final Random RANDOM = new Random();
 
     // ----------------------------------------------------------------
     // 公开接口
@@ -328,7 +330,7 @@ public class PaymentServiceImpl implements PaymentService {
      *   if (RANDOM.nextInt(10) == 0) throw new BizException(ErrorCodeEnum.NETWORK_ERROR);
      */
     private void simulateSend() {
-        // if (RANDOM.nextInt(10) == 0) throw new BizException(ErrorCodeEnum.NETWORK_ERROR);
+        if (RANDOM.nextInt(10) < 3) throw new BizException(ErrorCodeEnum.NETWORK_ERROR);
     }
 
     /**
@@ -337,7 +339,7 @@ public class PaymentServiceImpl implements PaymentService {
      *   if (RANDOM.nextInt(20) == 0) throw new BizException(ErrorCodeEnum.PROCESSING_ERROR, "The clearing system is temporarily unavailable.");
      */
     private void simulateComplete() {
-        // if (RANDOM.nextInt(20) == 0) throw new BizException(ErrorCodeEnum.PROCESSING_ERROR, "The clearing system is temporarily unavailable.");
+        if (RANDOM.nextInt(20) < 5) throw new BizException(ErrorCodeEnum.PROCESSING_ERROR, "The clearing system is temporarily unavailable.");
     }
 
     // ----------------------------------------------------------------

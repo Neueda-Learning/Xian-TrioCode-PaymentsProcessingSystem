@@ -1,12 +1,12 @@
 /**
- * 格式化工具函数
+ * Formatting utilities.
  */
 
 /**
- * 将金额格式化为带千分位、保留两位小数的字符串，并附加币种代码
- * @param {number|string} amount 金额
- * @param {string} currency 币种代码，如 USD
- * @returns {string} 例如 "1,234.56 USD"
+ * Format an amount with thousands separators, two decimals, and an optional currency code.
+ * @param {number|string} amount
+ * @param {string} currency
+ * @returns {string} e.g. "1,234.56 USD"
  */
 export function formatAmount(amount, currency) {
   const num = Number(amount)
@@ -19,7 +19,7 @@ export function formatAmount(amount, currency) {
 }
 
 /**
- * 支付状态 -> el-tag type 映射
+ * Payment status -> el-tag type mapping
  */
 export const STATUS_TAG_TYPE = {
   CREATED: 'info',
@@ -30,14 +30,28 @@ export const STATUS_TAG_TYPE = {
 }
 
 /**
- * 支付状态 -> 中文展示文案
+ * Payment status -> English display label
  */
 export const STATUS_LABEL = {
-  CREATED: '已创建',
-  VALIDATED: '已校验',
-  SENT: '已发送',
-  COMPLETED: '已完成',
-  FAILED: '失败',
+  CREATED: 'Created',
+  VALIDATED: 'Validated',
+  SENT: 'Sent',
+  COMPLETED: 'Completed',
+  FAILED: 'Failed',
+}
+
+/**
+ * Legacy/history reference text -> English display label mapping.
+ */
+export const HISTORY_REFERENCE_LABEL = {
+  '支付创建': 'Payment created',
+  '业务校验通过': 'Validation passed',
+  '发送成功': 'Payment sent',
+  '清算完成': 'Settlement completed',
+  'Payment created': 'Payment created',
+  'Validation passed': 'Validation passed',
+  'Payment sent': 'Payment sent',
+  'Settlement completed': 'Settlement completed',
 }
 
 export function statusTagType(status) {
@@ -47,3 +61,9 @@ export function statusTagType(status) {
 export function statusLabel(status) {
   return STATUS_LABEL[status] || status || '-'
 }
+
+export function historyReferenceLabel(reference) {
+  const text = String(reference || '').trim()
+  return HISTORY_REFERENCE_LABEL[text] || text || '-'
+}
+

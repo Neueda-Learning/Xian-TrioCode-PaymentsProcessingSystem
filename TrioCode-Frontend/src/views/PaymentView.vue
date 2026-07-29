@@ -1,6 +1,6 @@
-<script setup>
+﻿<script setup>
 /**
- * 支付管理主视图：组合列表、快速搜索、新建支付弹窗、时间线弹窗
+ * Payment management main view: combines list, quick search, create dialog, and timeline dialog.
  */
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
@@ -9,30 +9,27 @@ import PaymentCreateDialog from '@/components/PaymentCreateDialog.vue'
 import PaymentTimelineDialog from '@/components/PaymentTimelineDialog.vue'
 import { getHistoriesByPaymentNo } from '@/api/payment'
 import { usePaymentStore } from '@/store/payment'
-
+import { normalizePaymentErrorMessage } from '@/utils/paymentError'
 const store = usePaymentStore()
-
 const tableRef = ref(null)
 const quickSearchNo = ref('')
-
 const createVisible = ref(false)
 const timelineVisible = ref(false)
-
 /**
- * 点击列表任意一行：直接用行数据（已含 paymentId）弹出时间线
+ * Clicking any table row opens the timeline using the row data (which already includes paymentId).
  */
 function handleRowClick(row) {
   store.setSelectedPayment(row)
   timelineVisible.value = true
 }
-
 /**
- * 顶部工具栏快速搜索：按订单号校验并定位支付时间线
+ * Top toolbar quick search: validate by order number and open the payment timeline.
  */
 async function handleQuickSearch() {
   const paymentNo = quickSearchNo.value.trim()
+  const notFoundMessage = 'No payment record was found for this order number.'
   if (!paymentNo) {
-    ElMessage.warning('请输入订单号')
+    ElMessage.warning('Please enter an order number')
     return
   }
   try {
@@ -41,16 +38,14 @@ async function handleQuickSearch() {
       store.setSelectedPayment({ paymentNo })
       timelineVisible.value = true
     } else {
-      ElMessage.error('未找到该订单号对应的支付记录')
+      ElMessage.error(normalizePaymentErrorMessage(res.message || notFoundMessage, res.code) || notFoundMessage)
     }
   } catch (error) {
-    // 网络错误已由 request.js 统一提示；后端未找到订单号时通常返回非 SUCCESS code
-    ElMessage.error('未找到该订单号对应的支付记录')
+    ElMessage.error(error?.normalizedMessage || notFoundMessage)
   }
 }
-
 /**
- * 新建支付成功（无论最终 COMPLETED 还是 FAILED）：刷新列表并弹出时间线
+ * On successful create payment (whether COMPLETED or FAILED): refresh the list and open the timeline.
  */
 function handleCreateSuccess(detail) {
   tableRef.value?.reload()
@@ -58,53 +53,164 @@ function handleCreateSuccess(detail) {
   timelineVisible.value = true
 }
 </script>
-
 <template>
   <div class="payment-view">
-    <div class="toolbar">
-      <h2 class="title">支付管理</h2>
+    <section class="page-hero">
+      <div class="page-heading">
+        <p class="eyebrow">Payment Console</p>
+        <h2 class="title">Payment Management</h2>
+        <p class="subtitle">Search orders, create payments, and review the full timeline.</p>
+      </div>
       <div class="toolbar-actions">
         <el-input
           v-model="quickSearchNo"
-          placeholder="按订单号快速定位支付时间线"
+          class="quick-search"
+          placeholder="Search payment timeline by order number"
           clearable
-          style="width: 260px"
           @keyup.enter="handleQuickSearch"
         >
-          <template #suffix>
-            <el-icon class="search-icon" @click="handleQuickSearch"><Search /></el-icon>
+          <template #prefix>
+            <el-icon class="search-icon"><Search /></el-icon>
           </template>
         </el-input>
-        <el-button type="primary" @click="createVisible = true">新建支付</el-button>
+        <el-button class="search-button" plain @click="handleQuickSearch">
+          <el-icon><Search /></el-icon>
+          Search
+        </el-button>
+        <el-button class="create-button" type="primary" @click="createVisible = true">New Payment</el-button>
       </div>
+    </section>
+    <div class="content-shell">
+      <PaymentTable ref="tableRef" @row-click="handleRowClick" />
     </div>
-
-    <PaymentTable ref="tableRef" @row-click="handleRowClick" />
-
     <PaymentCreateDialog v-model="createVisible" @success="handleCreateSuccess" />
-
     <PaymentTimelineDialog v-model="timelineVisible" :payment="store.selectedPayment" />
   </div>
 </template>
-
 <style scoped>
 .payment-view {
-  padding: 20px;
+  max-width: 1680px;
+  margin: 0 auto;
+  padding: 24px 28px 30px;
 }
-.toolbar {
-  display: flex;
+.page-hero {
+  display: grid;
+  grid-template-columns: minmax(420px, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
+  column-gap: 18px;
+  margin-bottom: 14px;
+  padding: 18px 22px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at top right, rgba(56, 189, 248, 0.14), transparent 34%),
+    linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.92));
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.14);
+}
+.page-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.eyebrow {
+  margin: 0;
+  color: #93c5fd;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 .title {
   margin: 0;
+  font-size: 24px;
+  line-height: 1.2;
+  font-weight: 700;
+  color: #f8fafc;
+}
+.subtitle {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.78);
+  font-size: 13px;
 }
 .toolbar-actions {
   display: flex;
-  gap: 12px;
+  align-items: center;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.quick-search {
+  width: 380px;
+}
+.search-button {
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 999px;
+  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(226, 232, 240, 0.22);
+}
+.search-button:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(226, 232, 240, 0.34);
+}
+.search-button :deep(.el-icon) {
+  margin-right: 6px;
+}
+.quick-search :deep(.el-input__wrapper) {
+  border-radius: 999px;
+  padding-left: 14px;
+  padding-right: 14px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.18);
 }
 .search-icon {
   cursor: pointer;
+  color: #64748b;
+}
+.search-icon:hover {
+  color: var(--el-color-primary);
+}
+.create-button {
+  height: 40px;
+  padding: 0 20px;
+  border-radius: 999px;
+  box-shadow: 0 14px 30px rgba(59, 130, 246, 0.3);
+}
+.content-shell {
+  padding: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.08);
+  min-height: 620px;
+}
+@media (max-width: 960px) {
+  .payment-view {
+    padding: 16px;
+  }
+  .page-hero {
+    display: flex;
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .toolbar-actions {
+    flex-wrap: wrap;
+    justify-content: stretch;
+  }
+  .quick-search {
+    width: 100%;
+  }
+  .search-button,
+  .create-button {
+    width: 100%;
+  }
+  .create-button {
+    order: 3;
+  }
+  .search-button {
+    order: 2;
+  }
 }
 </style>

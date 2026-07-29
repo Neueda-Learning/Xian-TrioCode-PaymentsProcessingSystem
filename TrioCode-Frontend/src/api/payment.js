@@ -1,24 +1,24 @@
 import request from '@/utils/request'
 
 /**
- * 支付管理相关接口封装
- * 统一响应结构 Result<T>: { code, message, data }
- * 分页结构 PageResult<T>: { records, total, pageNum, pageSize, totalPages }
+ * Payment management API wrappers.
+ * Standard response shape Result<T>: { code, message, data }
+ * Pagination shape PageResult<T>: { records, total, pageNum, pageSize, totalPages }
  */
 
 // ---------------------------------------------------------------------------
-// 本地 Mock 数据兜底
-// 当后端 GET /api/v1/payments 接口暂未部署（联调阶段常见网络错误）时，
-// 使用与真实接口结构完全一致的本地数据，方便后续无缝切换到真实接口。
+// Local mock fallback data.
+// When GET /api/v1/payments is unavailable (common during integration),
+// we use local data that matches the real response shape so switching later is seamless.
 // ---------------------------------------------------------------------------
 const MOCK_STATUSES = ['CREATED', 'VALIDATED', 'SENT', 'COMPLETED', 'FAILED']
 const MOCK_CURRENCIES = ['USD', 'EUR', 'GBP', 'CNY', 'JPY']
 const MOCK_CURRENCY_NAMES = {
-  USD: '美元',
-  EUR: '欧元',
-  GBP: '英镑',
-  CNY: '人民币',
-  JPY: '日元',
+  USD: 'US Dollar',
+  EUR: 'Euro',
+  GBP: 'British Pound',
+  CNY: 'Chinese Yuan',
+  JPY: 'Japanese Yen',
 }
 
 function buildMockRecords() {
@@ -41,7 +41,7 @@ function buildMockRecords() {
 const MOCK_RECORDS = buildMockRecords()
 
 /**
- * 对 mock 数据做与后端一致的筛选 + 分页处理
+ * Apply the same filtering and pagination rules to the mock data.
  */
 function mockPaymentList(params = {}) {
   let list = MOCK_RECORDS.slice()
@@ -84,9 +84,9 @@ function mockPaymentList(params = {}) {
 }
 
 /**
- * 获取支付分页列表
- * 真实接口不可用时（网络错误 / 未部署），自动降级为本地 mock 数据
- * @param {Object} params 查询参数
+ * Fetch the payment list page.
+ * When the real endpoint is unavailable (network error / not deployed), fall back to local mock data.
+ * @param {Object} params query parameters
  */
 export async function getPaymentList(params) {
   try {
@@ -96,10 +96,10 @@ export async function getPaymentList(params) {
       params,
     })
   } catch (error) {
-    // 仅在请求本身未收到后端响应（网络错误/接口未部署）时才降级为 mock，
-    // 避免掩盖后端返回的真实业务错误。
+    // Only fall back to mock when no backend response is received (network error / endpoint not deployed)
+    // so we do not hide real business errors returned by the backend.
     if (!error?.response) {
-      console.warn('[payment] /v1/payments 接口不可用，使用本地 mock 数据兜底', error)
+      console.warn('[payment] /v1/payments unavailable, using local mock data', error)
       return mockPaymentList(params)
     }
     throw error
@@ -107,7 +107,7 @@ export async function getPaymentList(params) {
 }
 
 /**
- * 创建支付（同步全流程：CREATED -> VALIDATED -> SENT -> COMPLETED/FAILED）
+ * Create payment (full synchronous flow: CREATED -> VALIDATED -> SENT -> COMPLETED/FAILED).
  * @param {Object} data PaymentCreateReqDTO
  */
 export function createPayment(data) {
@@ -119,7 +119,7 @@ export function createPayment(data) {
 }
 
 /**
- * 根据 paymentId 查询支付状态时间线
+ * Query payment timeline by paymentId.
  * @param {number|string} paymentId
  */
 export function getHistoriesById(paymentId) {
@@ -130,7 +130,7 @@ export function getHistoriesById(paymentId) {
 }
 
 /**
- * 根据 paymentNo 查询支付状态时间线
+ * Query payment timeline by paymentNo.
  * @param {string} paymentNo
  */
 export function getHistoriesByPaymentNo(paymentNo) {
@@ -141,8 +141,8 @@ export function getHistoriesByPaymentNo(paymentNo) {
 }
 
 /**
- * 获取所有可用币种
- * 真实接口不可用时降级为本地 mock 币种列表，保证筛选/创建表单下拉框可用
+ * Get all available currencies.
+ * If the real endpoint is unavailable, fall back to a local mock list so the dropdowns still work.
  */
 export async function getAllCurrency() {
   try {
@@ -152,7 +152,7 @@ export async function getAllCurrency() {
     })
   } catch (error) {
     if (!error?.response) {
-      console.warn('[payment] /v1/getAllCurrency 接口不可用，使用本地 mock 币种数据兜底', error)
+      console.warn('[payment] /v1/getAllCurrency unavailable, using local mock currency data', error)
       return {
         code: 'SUCCESS',
         message: 'ok (mock data)',

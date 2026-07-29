@@ -174,8 +174,22 @@ defineExpose({ reload: fetchList })
         <el-empty description="No payment data available" />
       </template>
       <el-table-column prop="paymentNo" label="Order No." min-width="160" align="center" header-align="center" />
-      <el-table-column prop="sourceAccountId" label="Source Account ID" min-width="160" align="center" header-align="center" />
-      <el-table-column prop="destinationAccountId" label="Destination Account ID" min-width="180" align="center" header-align="center" />
+      <el-table-column prop="sourceAccountId" label="Source Account" min-width="180" align="center" header-align="center">
+        <template #default="{ row }">
+          <div class="account-cell">
+            <span class="account-name">{{ row.sourceAccountName || '-' }}</span>
+            <span class="account-id">ID: {{ row.sourceAccountId }}</span>
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column prop="destinationAccountId" label="Destination Account" min-width="180" align="center" header-align="center">
+        <template #default="{ row }">
+          <div class="account-cell">
+            <span class="account-name">{{ row.destinationAccountName || '-' }}</span>
+            <span class="account-id">ID: {{ row.destinationAccountId }}</span>
+          </div>
+        </template>
+      </el-table-column>
       <el-table-column prop="amount" label="Amount" min-width="150" sortable align="center" header-align="center">
         <template #default="{ row }">{{ formatAmount(row.amount, row.currency) }}</template>
       </el-table-column>
@@ -334,6 +348,20 @@ defineExpose({ reload: fetchList })
 .status-tag--unknown {
   background-color: rgba(100, 116, 139, 0.12);
   color: #475569;
+}
+.account-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.3;
+}
+.account-name {
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+.account-id {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
 }
 :deep(.el-pagination) {
   --el-pagination-button-width: 32px;

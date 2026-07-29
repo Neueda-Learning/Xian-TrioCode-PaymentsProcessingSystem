@@ -201,7 +201,6 @@ public class PaymentServiceImpl implements PaymentService {
                         status, paymentNo, reference, currency, createdFrom, createdTo, offset, pageSize)
                 .stream()
                 .filter(Objects::nonNull)
-                .map(this::toListItemVO)
                 .collect(Collectors.toList());
         return PageResult.of(records, total, pageNum, pageSize);
     }
@@ -376,19 +375,6 @@ public class PaymentServiceImpl implements PaymentService {
         vo.setErrorCode(h.getErrorCode());
         vo.setErrorMessage(h.getErrorMessage());
         vo.setCreatedAt(h.getCreatedAt());
-        return vo;
-    }
-
-    private PaymentListItemVO toListItemVO(Payment p) {
-        PaymentListItemVO vo = new PaymentListItemVO();
-        vo.setPaymentId(p.getId());
-        vo.setPaymentNo(p.getPaymentNo());
-        vo.setSourceAccountId(p.getSourceAccountId());
-        vo.setDestinationAccountId(p.getDestinationAccountId());
-        vo.setAmount(p.getAmount());
-        vo.setCurrency(p.getCurrency());
-        vo.setStatus(p.getStatus());
-        vo.setCreatedAt(p.getCreatedAt());
         return vo;
     }
 

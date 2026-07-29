@@ -9,7 +9,7 @@
 import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getHistoriesById, getHistoriesByPaymentNo } from '@/api/payment'
-import { formatAmount, historyReferenceLabel, statusTagType, statusLabel } from '@/utils/format'
+import { formatAmount, formatDateTime, historyReferenceLabel, statusTagType, statusLabel } from '@/utils/format'
 import { normalizePaymentErrorMessage } from '@/utils/paymentError'
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -89,7 +89,7 @@ watch(
       <el-timeline-item
         v-for="item in histories"
         :key="item.historyId"
-        :timestamp="item.createdAt"
+        :timestamp="formatDateTime(item.createdAt)"
         placement="top"
         :type="item.toStatus === 'FAILED' ? 'danger' : 'primary'"
       >

@@ -330,7 +330,7 @@ public class PaymentServiceImpl implements PaymentService {
      */
     private void simulateSend() {
         try {
-            Thread.sleep(3000);
+            Thread.sleep(500);
         } catch (InterruptedException e) {
             throw new BizException(ErrorCodeEnum.PROCESSING_ERROR, "Send simulation interrupted.");
         }
@@ -344,7 +344,7 @@ public class PaymentServiceImpl implements PaymentService {
      */
     private void simulateComplete() {
         try {
-            Thread.sleep(3000);
+            Thread.sleep(500);
         } catch (InterruptedException e) {
             throw new BizException(ErrorCodeEnum.PROCESSING_ERROR, "complete simulation interrupted.");
         }

@@ -322,7 +322,9 @@ CREATE TABLE payment_status_history (
 | INVALID_STATUS_TRANSITION | 400 | 非法状态流转 |
 | DUPLICATE_PAYMENT | 409 | 订单号已存在（重复提交） |
 | PAYMENT_NOT_FOUND | 404 | 支付记录不存在 |
+| ACCOUNT_NOT_FOUND | 404 | 账户不存在 |
 | PROCESSING_ERROR | 500 | 系统内部异常 |
+| CLEARING_SYSTEM_UNAVAILABLE | 503 | 清算系统暂时不可用 |
 | NETWORK_ERROR | 503 | 模拟网络通信失败 |
 
 ### 4.3 各接口详细说明
@@ -331,7 +333,7 @@ CREATE TABLE payment_status_history (
 
 #### 接口 1：创建支付
 - **URL**：`POST /api/v1/payments`
-- **用途**：创建支付单，初始状态为 CREATED
+- **用途**：创建支付并执行完整处理流程（校验、发送、清算），返回最终状态
 - **幂等**：同一 paymentNo 重复请求返回已存在记录，不再新建
 
 **请求体 `PaymentCreateReqDTO`：**
@@ -344,20 +346,6 @@ CREATE TABLE payment_status_history (
 | amount | BigDecimal | 是 | >0，≤1000000，最多2位小数 | 支付金额 |
 | currency | String | 是 | 非空，3位大写字母 | ISO4217 币种，如 USD |
 | reference | String | 否 | 长度≤128 | 备注说明 |
-
-**返回 `Result<PaymentDetailVO>`**（字段见接口2返回说明）
-
----
-
-#### 接口 2：查询支付详情
-- **URL**：`GET /api/v1/payments/{paymentId}`
-- **用途**：查看单笔支付完整信息和当前状态
-
-**路径参数：**
-
-| 参数名 | 类型 | 必传 | 说明 |
-|---|---|---|---|
-| paymentId | Long | 是 | 支付主键ID |
 
 **返回 `Result<PaymentDetailVO>`：**
 
@@ -373,16 +361,16 @@ CREATE TABLE payment_status_history (
 | status | String | 当前状态 |
 | failureCode | String | 失败业务码（失败时有值） |
 | failureMessage | String | 失败描述（失败时有值） |
-| validatedAt | String | 校验通过时间 |
-| sentAt | String | 发送时间 |
-| completedAt | String | 完成时间 |
-| failedAt | String | 失败时间 |
-| createdAt | String | 创建时间 |
-| updatedAt | String | 最后更新时间 |
+| validatedAt | LocalDateTime | 校验通过时间 |
+| sentAt | LocalDateTime | 发送时间 |
+| completedAt | LocalDateTime | 完成时间 |
+| failedAt | LocalDateTime | 失败时间 |
+| createdAt | LocalDateTime | 创建时间 |
+| updatedAt | LocalDateTime | 最后更新时间 |
 
 ---
 
-#### 接口 3：分页查询支付列表
+#### 接口 2：分页查询支付列表
 - **URL**：`GET /api/v1/payments`
 - **用途**：按条件筛选支付记录，支持分页
 
@@ -394,8 +382,8 @@ CREATE TABLE payment_status_history (
 | paymentNo | String | 否 | 订单号模糊搜索 |
 | reference | String | 否 | 备注模糊搜索 |
 | currency | String | 否 | 按币种过滤 |
-| createdFrom | String | 否 | 创建时间起（ISO8601） |
-| createdTo | String | 否 | 创建时间止 |
+| createdFrom | String | 否 | 创建时间起（ISO8601 Date-Time，例如 2026-07-30T10:00:00） |
+| createdTo | String | 否 | 创建时间止（ISO8601 Date-Time） |
 | pageNum | int | 否 | 页码，默认 1 |
 | pageSize | int | 否 | 每页条数，默认 10，最大 100 |
 
@@ -408,15 +396,17 @@ CREATE TABLE payment_status_history (
 | paymentId | Long | 支付ID |
 | paymentNo | String | 订单号 |
 | sourceAccountId | Long | 付款账户ID |
+| sourceAccountName | String | 付款账户名称 |
 | destinationAccountId | Long | 收款账户ID |
+| destinationAccountName | String | 收款账户名称 |
 | amount | BigDecimal | 金额 |
 | currency | String | 币种 |
 | status | String | 当前状态 |
-| createdAt | String | 创建时间 |
+| createdAt | LocalDateTime | 创建时间 |
 
 ---
 
-#### 接口 4：查询状态历史（时间线）
+#### 接口 3：按 paymentId 查询状态历史（时间线）
 - **URL**：`GET /api/v1/payments/{paymentId}/histories`
 - **用途**：查看单笔支付完整状态变更轨迹，用于时间线展示
 - **说明**：不分页，按 created_at 升序，返回全量历史记录
@@ -437,105 +427,67 @@ CREATE TABLE payment_status_history (
 | reference | String | 备注 |
 | errorCode | String | 错误码（失败节点有值） |
 | errorMessage | String | 错误描述（失败节点有值） |
-| createdAt | String | 创建时间 |
+| createdAt | LocalDateTime | 创建时间 |
 
 ---
 
-#### 接口 5：执行校验
-- **URL**：`POST /api/v1/payments/{paymentId}/validate`
-- **用途**：触发 CREATED → VALIDATED，业务校验失败则转 FAILED
-- **事务**：主表更新 + 历史记录插入，一个事务
+#### 接口 4：按 paymentNo 查询状态历史（时间线）
+- **URL**：`GET /api/v1/payments/no/{paymentNo}/histories`
+- **用途**：根据 paymentNo 查询单笔支付完整状态变更轨迹
+- **说明**：先通过 paymentNo 定位 paymentId，再复用历史查询逻辑
 
 **路径参数：**
 
 | 参数名 | 类型 | 必传 | 说明 |
 |---|---|---|---|
-| paymentId | Long | 是 | 支付主键ID |
+| paymentNo | String | 是 | 业务订单号 |
 
-**请求体 `PaymentActionReqDTO`：**
-
-| 参数名 | 类型 | 必传 | 说明 |
-|---|---|---|---|
-| reason | String | 否 | 操作原因，写入历史表 reference 字段 |
-
-**返回 `Result<PaymentDetailVO>`**（返回流转后最新状态）
-
----
-
-#### 接口 6：执行发送
-- **URL**：`POST /api/v1/payments/{paymentId}/send`
-- **用途**：触发 VALIDATED → SENT，模拟发送失败则转 FAILED
-
-**路径参数 / 请求体**：同接口5
-
-**返回 `Result<PaymentDetailVO>`**
-
----
-
-#### 接口 7：执行完成
-- **URL**：`POST /api/v1/payments/{paymentId}/complete`
-- **用途**：触发 SENT → COMPLETED，模拟清算失败则转 FAILED
-
-**路径参数 / 请求体**：同接口5
-
-**返回 `Result<PaymentDetailVO>`**
-
----
-
-#### 接口 8：手工置失败
-- **URL**：`POST /api/v1/payments/{paymentId}/fail`
-- **用途**：CREATED / VALIDATED / SENT → FAILED，演示或管理场景
-
-**路径参数：**
-
-| 参数名 | 类型 | 必传 | 说明 |
-|---|---|---|---|
-| paymentId | Long | 是 | 支付主键ID |
-
-**请求体 `PaymentFailReqDTO`：**
-
-| 参数名 | 类型 | 必传 | 说明 |
-|---|---|---|---|
-| errorCode | String | 是 | 错误码，参考 ErrorCodeEnum |
-| errorMessage | String | 是 | 错误描述 |
-| reason | String | 否 | 操作原因，写入历史表 reference 字段 |
-
-**返回 `Result<PaymentDetailVO>`**
-
----
-
-#### 接口 9：查询失败详情
-- **URL**：`GET /api/v1/payments/{paymentId}/failure`
-- **用途**：专门为失败详情页提供聚合数据
-
-**路径参数：**
-
-| 参数名 | 类型 | 必传 | 说明 |
-|---|---|---|---|
-| paymentId | Long | 是 | 支付主键ID |
-
-**返回 `Result<PaymentFailureVO>`：**
+**返回 `Result<List<PaymentHistoryVO>>`：**
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| paymentId | Long | 支付ID |
-| status | String | 当前状态（应为 FAILED） |
-| failureCode | String | 失败业务码 |
-| failureMessage | String | 失败详细描述 |
-| failedAt | String | 失败时间 |
+| historyId | Long | 历史记录ID |
+| fromStatus | String | 原状态（首次创建时为 null） |
+| toStatus | String | 目标状态 |
+| reference | String | 备注 |
+| errorCode | String | 错误码（失败节点有值） |
+| errorMessage | String | 错误描述（失败节点有值） |
+| createdAt | LocalDateTime | 创建时间 |
 
 ---
 
-#### 接口 10：查询币种字典
-- **URL**：`GET /api/v1/dicts/currencies`
+#### 接口 5：按 ID 查询账户
+- **URL**：`GET /api/v1/accounts/{id}`
+- **用途**：根据账户ID查询账户基础信息（用于前端回显账户名）
+
+**路径参数：**
+
+| 参数名 | 类型 | 必传 | 说明 |
+|---|---|---|---|
+| id | Long | 是 | 账户ID |
+
+**返回 `Result<AccountVO>`：**
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| id | Long | 账户ID |
+| accountNo | String | 账号 |
+| name | String | 账户名称 |
+| status | Integer | 账户状态 |
+
+---
+
+#### 接口 6：查询币种字典
+- **URL**：`GET /api/v1/getAllCurrency`
 - **用途**：前端创建支付表单下拉项数据源
 
 **查询参数：无**
 
-**返回 `Result<List<CurrencyVO>>`：**
+**返回 `Result<List<CurrencyDict>>`：**
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
+| id | Long | 币种记录ID |
 | code | String | 币种代码，如 USD |
 | codeName | String | 币种名称 |
 | countryName | String | 国家名称 |

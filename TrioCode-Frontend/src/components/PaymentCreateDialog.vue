@@ -4,7 +4,7 @@
  * Submits the synchronous flow POST /api/v1/payments,
  * shows the final status (COMPLETED / FAILED), and notifies the parent to open the timeline.
  */
-import { ref, reactive, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
 import { createPayment } from '@/api/payment'
 import { getAccountById } from '@/api/account'
@@ -114,6 +114,14 @@ const rules = {
   currency: [{ required: true, message: 'Please select a currency', trigger: 'change' }],
   reference: [{ max: 128, message: 'The reference cannot exceed 128 characters', trigger: 'blur' }],
 }
+// The amount must be a positive number; when it isn't, keep Submit disabled
+// instead of silently clamping the input value.
+const isAmountInvalid = computed(() => {
+  const value = form.amount
+  if (value === undefined || value === null || value === '') return true
+  const num = Number(value)
+  return Number.isNaN(num) || num <= 0
+})
 function close() {
   emit('update:modelValue', false)
 }
@@ -299,7 +307,6 @@ onBeforeUnmount(() => {
       <el-form-item label="Amount" prop="amount">
         <el-input-number
           v-model="form.amount"
-          :min="0.01"
           :max="999999.99"
           :precision="2"
           :step="0.01"
@@ -331,7 +338,15 @@ onBeforeUnmount(() => {
     <template #footer>
       <div class="dialog-footer-actions">
         <el-button class="footer-button secondary" @click="close">Cancel</el-button>
-        <el-button class="footer-button primary" type="primary" :loading="submitting" @click="handleSubmit">Submit</el-button>
+        <el-button
+          class="footer-button primary"
+          type="primary"
+          :loading="submitting"
+          :disabled="isAmountInvalid"
+          @click="handleSubmit"
+        >
+          Submit
+        </el-button>
       </div>
     </template>
   </el-dialog>

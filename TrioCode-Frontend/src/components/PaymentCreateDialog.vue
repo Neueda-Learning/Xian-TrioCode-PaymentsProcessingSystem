@@ -17,6 +17,7 @@ const emit = defineEmits(['update:modelValue', 'success'])
 const store = usePaymentStore()
 const formRef = ref(null)
 const submitting = ref(false)
+const amountTouched = ref(false)
 let lastTimestampKey = ''
 let sequence = 0
 
@@ -93,17 +94,13 @@ const rules = {
     { required: true, message: 'Please enter an amount', trigger: 'blur' },
     {
       validator: (rule, value, callback) => {
-        if (value === undefined || value === null || value === '') {
-          callback(new Error('Please enter an amount'))
-          return
-        }
+        if (value === undefined || value === null || value === '') return callback()
         const num = Number(value)
-        if (Number.isNaN(num) || num <= 0) {
+        if (Number.isNaN(num)) return callback()
+        if (num < 0) {
           callback(new Error('The amount must be greater than 0'))
         } else if (num >= 1000000) {
-          callback(new Error('The amount must be less than 1,000,000'))
-        } else if (!/^\d+(\.\d{1,2})?$/.test(String(value))) {
-          callback(new Error('The amount can have at most 2 decimal places'))
+          callback(new Error('The amount must be less than 1000000'))
         } else {
           callback()
         }
@@ -114,19 +111,57 @@ const rules = {
   currency: [{ required: true, message: 'Please select a currency', trigger: 'change' }],
   reference: [{ max: 128, message: 'The reference cannot exceed 128 characters', trigger: 'blur' }],
 }
-// The amount must be a positive number; when it isn't, keep Submit disabled
-// instead of silently clamping the input value.
-const isAmountInvalid = computed(() => {
-  const value = form.amount
-  if (value === undefined || value === null || value === '') return true
-  const num = Number(value)
-  return Number.isNaN(num) || num <= 0
+const amountPattern = /^\d+(\.\d{1,2})?$/
+
+const amountRealtimeError = computed(() => {
+  const raw = String(form.amount ?? '').trim()
+  if (!raw) {
+    return amountTouched.value ? 'Please enter an amount' : ''
+  }
+
+  const num = Number(raw)
+  if (Number.isNaN(num)) return ''
+  if (num < 0) return 'The amount must be greater than 0'
+  if (num >= 1000000) return 'The amount must be less than 1000000'
+
+  return ''
+})
+
+function handleAmountBlur() {
+  amountTouched.value = true
+}
+
+// Keep submit disabled until the full form meets client-side constraints.
+const isFormSubmittable = computed(() => {
+  const paymentNo = String(form.paymentNo || '').trim()
+  const sourceId = Number(form.sourceAccountId)
+  const destinationId = Number(form.destinationAccountId)
+  const amountRaw = String(form.amount ?? '').trim()
+  const amountNum = Number(amountRaw)
+  const currency = String(form.currency || '').trim()
+  const reference = String(form.reference || '')
+
+  if (!paymentNo || paymentNo.length > 32) return false
+  if (!Number.isInteger(sourceId) || sourceId < 1) return false
+  if (!Number.isInteger(destinationId) || destinationId < 1) return false
+  if (sourceId === destinationId) return false
+  // Both account IDs must be resolved successfully before submit is enabled.
+  if (accountLookup.source.loading || accountLookup.destination.loading) return false
+  if (accountLookup.source.notFound || accountLookup.destination.notFound) return false
+  if (accountLookup.source.lookupError || accountLookup.destination.lookupError) return false
+  if (!accountLookup.source.verified || !accountLookup.destination.verified) return false
+  if (!amountRaw || !amountPattern.test(amountRaw)) return false
+  if (Number.isNaN(amountNum) || amountNum <= 0 || amountNum >= 1000000) return false
+  if (!currency) return false
+  if (reference.length > 128) return false
+  return true
 })
 function close() {
   emit('update:modelValue', false)
 }
 function resetForm() {
   Object.assign(form, defaultForm())
+  amountTouched.value = false
   formRef.value?.clearValidate()
   filteredCurrencyOptions.value = store.currencyOptions
   resetAccountLookup(accountLookup.source)
@@ -141,6 +176,18 @@ watch(
   },
 )
 async function handleSubmit() {
+  if (accountLookup.source.loading || accountLookup.destination.loading) {
+    ElMessage.warning('Please wait for account verification to complete')
+    return
+  }
+  if (accountLookup.source.notFound || accountLookup.destination.notFound) {
+    ElMessage.error('Please provide valid source and destination account IDs')
+    return
+  }
+  if (accountLookup.source.lookupError || accountLookup.destination.lookupError) {
+    ElMessage.error('Account verification failed, please try again')
+    return
+  }
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
   submitting.value = true
@@ -200,7 +247,7 @@ function filterCurrencyOption(query) {
 // "not found" hint) as the user types a Source/Destination Account ID.
 // ----------------------------------------------------------------
 function createAccountLookupState() {
-  return { loading: false, name: '', notFound: false, requestId: 0 }
+  return { loading: false, name: '', notFound: false, lookupError: false, requestId: 0, verified: false }
 }
 const accountLookup = reactive({
   source: createAccountLookupState(),
@@ -211,6 +258,8 @@ function resetAccountLookup(state) {
   state.loading = false
   state.name = ''
   state.notFound = false
+  state.lookupError = false
+  state.verified = false
 }
 
 async function lookupAccount(state, accountId) {
@@ -221,20 +270,34 @@ async function lookupAccount(state, accountId) {
   const requestId = ++state.requestId
   state.loading = true
   state.notFound = false
+  state.lookupError = false
+  state.verified = false
   try {
     const res = await getAccountById(accountId)
     if (requestId !== state.requestId) return // A newer lookup has since started; discard this stale result.
     if (res.code === 'SUCCESS' && res.data) {
       state.name = res.data.name || ''
       state.notFound = false
-    } else {
+      state.lookupError = false
+      state.verified = true
+    } else if (res.code === 'ACCOUNT_NOT_FOUND') {
       state.name = ''
       state.notFound = true
+      state.lookupError = false
+      state.verified = false
+    } else {
+      state.name = ''
+      state.notFound = false
+      state.lookupError = true
+      state.verified = false
     }
   } catch (error) {
     if (requestId !== state.requestId) return
+    const code = String(error?.response?.data?.code || '').toUpperCase()
     state.name = ''
-    state.notFound = true
+    state.notFound = code === 'ACCOUNT_NOT_FOUND'
+    state.lookupError = code !== 'ACCOUNT_NOT_FOUND'
+    state.verified = false
   } finally {
     if (requestId === state.requestId) {
       state.loading = false
@@ -296,24 +359,26 @@ onBeforeUnmount(() => {
         <el-input-number v-model="form.sourceAccountId" :min="1" :controls="false" class="full-width-input" placeholder="Enter the source account ID" />
         <div v-if="accountLookup.source.loading" class="account-hint account-hint--loading">Looking up account…</div>
         <div v-else-if="accountLookup.source.notFound" class="account-hint account-hint--error">Account not found</div>
+        <div v-else-if="accountLookup.source.lookupError" class="account-hint account-hint--error">Unable to verify account now</div>
         <div v-else-if="accountLookup.source.name" class="account-hint account-hint--success">{{ accountLookup.source.name }}</div>
       </el-form-item>
       <el-form-item label="Destination ID" prop="destinationAccountId">
         <el-input-number v-model="form.destinationAccountId" :min="1" :controls="false" class="full-width-input" placeholder="Enter the destination account ID" />
         <div v-if="accountLookup.destination.loading" class="account-hint account-hint--loading">Looking up account…</div>
         <div v-else-if="accountLookup.destination.notFound" class="account-hint account-hint--error">Account not found</div>
+        <div v-else-if="accountLookup.destination.lookupError" class="account-hint account-hint--error">Unable to verify account now</div>
         <div v-else-if="accountLookup.destination.name" class="account-hint account-hint--success">{{ accountLookup.destination.name }}</div>
       </el-form-item>
-      <el-form-item label="Amount" prop="amount">
-        <el-input-number
+      <el-form-item label="Amount" prop="amount" :show-message="false">
+        <el-input
           v-model="form.amount"
-          :max="999999.99"
-          :precision="2"
-          :step="0.01"
-          :controls="false"
           class="full-width-input"
           placeholder="Enter an amount"
+          clearable
+          inputmode="decimal"
+          @blur="handleAmountBlur"
         />
+        <div v-if="amountRealtimeError" class="account-hint account-hint--error">{{ amountRealtimeError }}</div>
       </el-form-item>
       <el-form-item label="Currency" prop="currency">
         <el-select
@@ -342,7 +407,7 @@ onBeforeUnmount(() => {
           class="footer-button primary"
           type="primary"
           :loading="submitting"
-          :disabled="isAmountInvalid"
+          :disabled="!isFormSubmittable"
           @click="handleSubmit"
         >
           Submit

@@ -25,7 +25,10 @@ import org.hsbc.triocodebackend.service.PaymentService;
 import org.hsbc.triocodebackend.service.PaymentStateMachine;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -61,6 +64,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final AccountBalanceHistoryMapper balanceHistoryMapper;
     private final PaymentRuleChecker ruleChecker;
     private final PaymentStateMachine stateMachine;
+    private final PlatformTransactionManager transactionManager;
 
     private static final int MAX_SEND_RETRIES = Constants.Payment.MAX_SEND_RETRIES;
     private static final Random RANDOM = new Random();
@@ -72,6 +76,17 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional(rollbackFor = Exception.class, noRollbackFor = BizException.class)
     public PaymentDetailVO submitPayment(PaymentCreateReqDTO req) {
+        try {
+            return doSubmitPayment(req);
+        } catch (Exception e) {
+            if (!(e instanceof BizException)) {
+                safeRecordRollbackFailure(req, e);
+            }
+            throw e;
+        }
+    }
+
+    private PaymentDetailVO doSubmitPayment(PaymentCreateReqDTO req) {
         // 统一金额精度到系统约定的 2 位小数。
         req.setAmount(req.getAmount().setScale(Constants.Payment.CURRENCY_SCALE, RoundingMode.HALF_UP));
 
@@ -150,6 +165,68 @@ public class PaymentServiceImpl implements PaymentService {
 
         log.info("[Payment] Completed, id={}, paymentNo={}", payment.getId(), payment.getPaymentNo());
         return toVO(paymentMapper.selectById(payment.getId()));
+    }
+
+    private void safeRecordRollbackFailure(PaymentCreateReqDTO req, Exception ex) {
+        try {
+            recordRollbackFailure(req, ex);
+        } catch (Exception recordEx) {
+            // Never override the original business/system exception with recorder failure.
+            log.error("[Payment] Failed to persist rollback failure record, paymentNo={}", req.getPaymentNo(), recordEx);
+        }
+    }
+
+    /**
+     * 对非 BizException 回滚场景补记失败轨迹（payment + payment_status_history）。
+     * 使用新事务提交，避免被外层事务回滚。
+     */
+    private void recordRollbackFailure(PaymentCreateReqDTO req, Exception ex) {
+        TransactionTemplate tx = new TransactionTemplate(transactionManager);
+        tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        tx.executeWithoutResult(status -> {
+            String failureCode = ErrorCodeEnum.PROCESSING_ERROR.getCode();
+            String failureMessage = ErrorCodeEnum.PROCESSING_ERROR.getMessage();
+            if (ex.getMessage() != null && !ex.getMessage().isBlank()) {
+                failureMessage = ex.getMessage();
+            }
+
+            Payment existing = paymentMapper.selectByPaymentNo(req.getPaymentNo());
+            if (existing != null) {
+                historyMapper.insert(PaymentStatusHistory.builder()
+                        .paymentId(existing.getId())
+                        .fromStatus(existing.getStatus())
+                        .toStatus(existing.getStatus())
+                        .reference("Rollback failure recorded")
+                        .errorCode(failureCode)
+                        .errorMessage(failureMessage)
+                        .build());
+                return;
+            }
+
+            Payment failedPayment = Payment.builder()
+                    .paymentNo(req.getPaymentNo())
+                    .sourceAccountId(req.getSourceAccountId())
+                    .destinationAccountId(req.getDestinationAccountId())
+                    .amount(req.getAmount())
+                    .currency(req.getCurrency())
+                    .reference(req.getReference())
+                    .status(PaymentStatusEnum.FAILED.name())
+                    .failureCode(failureCode)
+                    .failureMessage(failureMessage)
+                    .failedAt(LocalDateTime.now())
+                    .version(0)
+                    .build();
+            paymentMapper.insert(failedPayment);
+
+            historyMapper.insert(PaymentStatusHistory.builder()
+                    .paymentId(failedPayment.getId())
+                    .fromStatus(null)
+                    .toStatus(PaymentStatusEnum.FAILED.name())
+                    .reference("Rollback failure recorded")
+                    .errorCode(failureCode)
+                    .errorMessage(failureMessage)
+                    .build());
+        });
     }
 
     @Override
